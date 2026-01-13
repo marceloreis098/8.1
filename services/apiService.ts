@@ -1,9 +1,4 @@
-
 import { User, Equipment, License, UserRole, EquipmentHistory, AuditLogEntry, AppSettings, Ticket } from '../types';
-import * as demo from './demoData';
-
-// Função para checar o modo demo SEMPRE do localStorage para ser dinâmico em tempo real
-const isDemo = () => localStorage.getItem('demo_mode') === 'true';
 
 const handleResponse = async (response: Response) => {
     if (response.status === 204) return;
@@ -25,56 +20,37 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     return handleResponse(response);
 };
 
-// --- DATA FETCHING ---
+// --- DATA FETCHING (100% REAL API) ---
 
 export const getTickets = async (user: User): Promise<Ticket[]> => {
-    if (isDemo()) return Promise.resolve(demo.mockTickets);
     return apiRequest(`/tickets?userId=${user.id}&role=${user.role}`);
 };
 
 export const getEquipment = async (user: User): Promise<Equipment[]> => {
-    if (isDemo()) return Promise.resolve(demo.mockEquipment);
     return apiRequest(`/equipment?userId=${user.id}&role=${user.role}`);
 };
 
 export const getLicenses = async (user: User): Promise<License[]> => {
-    if (isDemo()) return Promise.resolve(demo.mockLicenses);
     return apiRequest(`/licenses?userId=${user.id}&role=${user.role}`);
 };
 
 export const getUsers = async (): Promise<User[]> => {
-    if (isDemo()) return Promise.resolve(demo.mockUsers);
     return apiRequest('/users');
 };
 
 export const getAuditLog = async (): Promise<AuditLogEntry[]> => {
-    if (isDemo()) return Promise.resolve(demo.mockAudit);
     return apiRequest('/audit-log');
 };
 
 export const getSettings = async (): Promise<AppSettings> => {
-    if (isDemo()) return Promise.resolve({
-        companyName: 'RESERVA (DEMO)',
-        isSsoEnabled: false,
-        is2faEnabled: true,
-        require2fa: false,
-        hasInitialConsolidationRun: true,
-        termo_entrega_template: '',
-        termo_devolucao_template: ''
-    });
     return apiRequest('/settings');
 };
 
 export const getLicenseTotals = (): Promise<Record<string, number>> => {
-    if (isDemo()) return Promise.resolve(demo.mockLicenseTotals);
     return apiRequest('/licenses/totals');
 };
 
 export const login = (credentials: {username: string, password?: string, ssoToken?: string}): Promise<User> => {
-    if (isDemo()) {
-        const user = demo.mockUsers.find(u => u.username === credentials.username) || demo.mockUsers[0];
-        return Promise.resolve(user);
-    }
     return apiRequest('/login', { method: 'POST', body: JSON.stringify(credentials) });
 };
 
@@ -91,42 +67,34 @@ export const checkApiStatus = async (): Promise<{ ok: boolean, message?: string 
 // --- WRITE OPERATIONS ---
 
 export const createTicket = async (ticket: Partial<Ticket>, username: string): Promise<Ticket> => {
-    if (isDemo()) return Promise.resolve({ ...ticket, id: Date.now(), created_at: new Date().toISOString() } as Ticket);
     return apiRequest('/tickets', { method: 'POST', body: JSON.stringify({ ticket, username }) });
 };
 
 export const updateTicket = async (ticket: Partial<Ticket>, username: string): Promise<Ticket> => {
-    if (isDemo()) return Promise.resolve(ticket as Ticket);
     return apiRequest(`/tickets/${ticket.id}`, { method: 'PUT', body: JSON.stringify({ ticket, username }) });
 };
 
 export const addEquipment = (equipment: Omit<Equipment, 'id'>, user: User): Promise<Equipment> => {
-    if (isDemo()) return Promise.resolve({ ...equipment, id: Date.now() } as Equipment);
     return apiRequest('/equipment', { method: 'POST', body: JSON.stringify({ equipment, username: user.username }) });
 };
 
 export const updateEquipment = (equipment: Equipment, username: string): Promise<Equipment> => {
-    if (isDemo()) return Promise.resolve(equipment);
     return apiRequest(`/equipment/${equipment.id}`, { method: 'PUT', body: JSON.stringify({ equipment, username }) });
 };
 
 export const updateLicense = (license: License, username: string): Promise<License> => {
-    if (isDemo()) return Promise.resolve(license);
     return apiRequest(`/licenses/${license.id}`, { method: 'PUT', body: JSON.stringify({ license, username }) });
 };
 
 export const addLicense = (license: Omit<License, 'id'>, user: User): Promise<License> => {
-    if (isDemo()) return Promise.resolve({ ...license, id: Date.now() } as License);
     return apiRequest('/licenses', { method: 'POST', body: JSON.stringify({ license, username: user.username }) });
 };
 
 export const deleteEquipment = (id: number, username: string): Promise<void> => {
-    if (isDemo()) return Promise.resolve();
     return apiRequest(`/equipment/${id}`, { method: 'DELETE', body: JSON.stringify({ username }) });
 };
 
 export const deleteLicense = (id: number, username: string): Promise<void> => {
-    if (isDemo()) return Promise.resolve();
     return apiRequest(`/licenses/${id}`, { method: 'DELETE', body: JSON.stringify({ username }) });
 };
 

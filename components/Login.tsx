@@ -16,7 +16,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, isSsoEnabled }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [serverOnline, setServerOnline] = useState<boolean | null>(null);
-  const isDemoMode = localStorage.getItem('demo_mode') === 'true';
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -36,33 +35,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, isSsoEnabled }) => {
       const user = await login({ username, password });
       onLoginSuccess(user);
     } catch (err: any) {
-      if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        setError('Não foi possível conectar ao servidor real. Verifique se a API está rodando ou use o Modo Demo.');
-      } else {
-        setError(err.message || 'Usuário ou senha inválidos.');
-      }
+      setError(err.message || 'Usuário ou senha inválidos.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleActivateDemo = async () => {
-    setIsLoading(true);
-    localStorage.setItem('demo_mode', 'true');
-    setTimeout(async () => {
-        try {
-            const user = await login({ username: 'admin', password: 'any' });
-            onLoginSuccess(user);
-        } catch (e) {
-            setError("Erro ao iniciar modo demo.");
-            setIsLoading(false);
-        }
-    }, 400);
-  };
-
-  const handleDeactivateDemo = () => {
-    localStorage.setItem('demo_mode', 'false');
-    window.location.reload();
   };
   
   const handleSsoLogin = () => {
@@ -79,7 +55,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, isSsoEnabled }) => {
           <div className="flex items-center justify-center gap-2 mt-2 text-xs font-medium">
             <span className={`w-2 h-2 rounded-full ${serverOnline === null ? 'bg-gray-400' : serverOnline ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`}></span>
             <span className={serverOnline ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                {serverOnline === null ? 'Verificando servidor...' : serverOnline ? 'Servidor Real Online' : 'Servidor Real Offline'}
+                {serverOnline === null ? 'Verificando servidor...' : serverOnline ? 'Servidor Online' : 'Servidor Offline'}
             </span>
           </div>
         </div>
@@ -97,7 +73,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, isSsoEnabled }) => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="shadow appearance-none border dark:border-dark-border rounded w-full py-2 px-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-dark-text-primary leading-tight focus:outline-none focus:ring-2 focus:ring-brand-primary"
-              placeholder="Ex: admin"
+              placeholder="Digite seu usuário"
+              required
             />
           </div>
           <div className="mb-6">
@@ -111,34 +88,17 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, isSsoEnabled }) => {
               onChange={(e) => setPassword(e.target.value)}
               className="shadow appearance-none border dark:border-dark-border rounded w-full py-2 px-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-dark-text-primary mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-brand-primary"
               placeholder="********"
+              required
             />
           </div>
           <div className="flex flex-col items-center justify-between gap-4">
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || serverOnline === false}
               className="bg-brand-primary hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition-colors disabled:bg-gray-400 flex justify-center items-center gap-2"
             >
-              {isLoading ? <><Icon name="LoaderCircle" className="animate-spin" size={18}/> Entrando...</> : 'Entrar no Sistema Real'}
+              {isLoading ? <><Icon name="LoaderCircle" className="animate-spin" size={18}/> Entrando...</> : 'Entrar'}
             </button>
-
-            {isDemoMode ? (
-                <button
-                    type="button"
-                    onClick={handleDeactivateDemo}
-                    className="text-orange-600 dark:text-orange-400 text-xs font-bold hover:underline py-1 flex items-center gap-1"
-                >
-                    <Icon name="Power" size={12} /> Desativar Modo Demo
-                </button>
-            ) : (
-                <button
-                    type="button"
-                    onClick={handleActivateDemo}
-                    className="text-brand-secondary dark:text-brand-primary text-xs font-bold hover:underline py-1"
-                >
-                    Ativar Modo de Demonstração (DADOS FICTÍCIOS)
-                </button>
-            )}
 
             {isSsoEnabled && (
                 <>

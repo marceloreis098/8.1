@@ -15,7 +15,6 @@ import TwoFactorSetup from './components/TwoFactorSetup';
 import { Page, User, UserRole } from './types';
 import { getSettings } from './services/apiService';
 import AIAssistantWidget from './components/AIAssistantWidget';
-import Icon from './components/common/Icon';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -26,7 +25,6 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [companyName, setCompanyName] = useState('MRR INFORMATICA');
   const [isSsoEnabled, setIsSsoEnabled] = useState(false);
-  const [isDemoMode, setIsDemoMode] = useState(localStorage.getItem('demo_mode') === 'true');
 
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
@@ -43,17 +41,7 @@ const App: React.FC = () => {
       document.documentElement.classList.add('dark');
       setIsDarkMode(true);
     }
-
-    // Listener para mudanças no modo demo via localStorage (outras abas ou componentes)
-    const interval = setInterval(() => {
-        const currentMode = localStorage.getItem('demo_mode') === 'true';
-        if (currentMode !== isDemoMode) {
-            setIsDemoMode(currentMode);
-        }
-    }, 500);
-    
-    return () => clearInterval(interval);
-  }, [isDemoMode]);
+  }, []);
   
   const fetchSettings = useCallback(async () => {
         try {
@@ -66,8 +54,8 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        fetchSettings();
-    }, [fetchSettings, isDemoMode, currentUser]);
+        if (currentUser) fetchSettings();
+    }, [fetchSettings, currentUser]);
 
 
   const handleLoginSuccess = (user: User & { requires2FASetup?: boolean }) => {
@@ -103,18 +91,6 @@ const App: React.FC = () => {
     localStorage.removeItem('currentUser');
     sessionStorage.removeItem('2fa_verified');
     setActivePage('Dashboard');
-  };
-
-  const deactivateDemoMode = () => {
-    console.log("Desativando Modo Demo e limpando caches...");
-    localStorage.setItem('demo_mode', 'false');
-    localStorage.removeItem('currentUser');
-    sessionStorage.removeItem('2fa_verified');
-    // Forçar limpeza de estados
-    setIsDemoMode(false);
-    setCurrentUser(null);
-    // Recarregar a página para garantir que o apiService use o novo valor de demo_mode
-    window.location.href = window.location.origin;
   };
   
   const handleUserUpdate = (updatedUser: User) => {
@@ -174,19 +150,6 @@ const App: React.FC = () => {
     }
   };
 
-  const DemoBanner = () => (
-    <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white py-2 px-4 text-center text-sm font-bold flex items-center justify-center gap-2 shadow-md z-[100] animate-fade-in">
-       <Icon name="TriangleAlert" size={18} />
-       MODO DE DEMONSTRAÇÃO ATIVO - DADOS FICTÍCIOS
-       <button 
-        onClick={deactivateDemoMode}
-        className="ml-4 bg-white/20 hover:bg-white/30 px-3 py-1 rounded border border-white/50 transition-all hover:scale-105 active:scale-95"
-       >
-         Sair e Voltar ao Sistema Real (MariaDB)
-       </button>
-    </div>
-  );
-
   if (userFor2FASetup) {
     return <TwoFactorSetup user={userFor2FASetup} onSetupSuccess={handle2FASetupSuccess} onCancel={handleLogout} />
   }
@@ -196,17 +159,11 @@ const App: React.FC = () => {
   }
 
   if (!currentUser) {
-    return (
-      <>
-        {isDemoMode && <DemoBanner />}
-        <Login onLoginSuccess={handleLoginSuccess} isSsoEnabled={isSsoEnabled} />
-      </>
-    );
+    return <Login onLoginSuccess={handleLoginSuccess} isSsoEnabled={isSsoEnabled} />;
   }
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-dark-bg text-gray-800 dark:text-dark-text-primary">
-      {isDemoMode && <DemoBanner />}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           activePage={activePage}

@@ -17,9 +17,17 @@ export const mockEquipment: Equipment[] = [
 
 export const mockLicenses: License[] = [
     { id: 201, produto: 'Microsoft 365 Business Premium', tipoLicenca: 'Assinatura', chaveSerial: 'XXXXX-YYYYY-ZZZZZ', usuario: 'Marcelo Reis', empresa: 'Reserva', dataExpiracao: '2025-12-31' },
-    { id: 202, produto: 'Adobe Creative Cloud', tipoLicenca: 'Assinatura', chaveSerial: 'ADBE-1234-5678', usuario: 'Ana Souza', empresa: 'Reserva', setor: 'Marketing', dataExpiracao: '2024-08-15' },
-    { id: 203, produto: 'Windows 11 Pro', tipoLicenca: 'OEM', chaveSerial: 'W11-PRO-667-889', usuario: 'João Silva', empresa: 'Reserva', nomeComputador: 'RES-DSK-09' }
+    { id: 202, produto: 'Adobe Creative Cloud', tipoLicenca: 'Assinatura', chaveSerial: 'ADBE-1234-5678', usuario: 'Ana Souza', empresa: 'Reserva', setor: 'Marketing', dataExpiracao: '2025-08-15' },
+    { id: 203, produto: 'Windows 11 Pro', tipoLicenca: 'OEM', chaveSerial: 'W11-PRO-667-889', usuario: 'João Silva', empresa: 'Reserva', nomeComputador: 'RES-DSK-09' },
+    { id: 204, produto: 'Microsoft 365 Business Premium', tipoLicenca: 'Assinatura', chaveSerial: 'AAAAA-BBBBB-CCCCC', usuario: 'Ana Souza', empresa: 'Reserva', dataExpiracao: '2025-12-31' }
 ];
+
+export const mockLicenseTotals: Record<string, number> = {
+    'Microsoft 365 Business Premium': 10,
+    'Adobe Creative Cloud': 5,
+    'Windows 11 Pro': 50,
+    'Slack Pro': 20
+};
 
 export const mockTickets: Ticket[] = [
     { id: 501, title: 'Tela Azul constante no Notebook', description: 'O equipamento apresenta BSOD a cada 2 horas de uso.', category: 'Hardware', status: TicketStatus.InProgress, priority: TicketPriority.High, requester_id: 3, requester_name: 'João Silva', equipment_id: 104, equipment_serial: 'IPAD-6677', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
@@ -28,5 +36,6 @@ export const mockTickets: Ticket[] = [
 
 export const mockAudit: AuditLogEntry[] = [
     { id: 1, username: 'admin', action_type: 'UPDATE', target_type: 'EQUIPMENT', target_id: 101, details: 'Alterou status para Em Uso', timestamp: new Date().toISOString() },
-    { id: 2, username: 'admin', action_type: 'LOGIN', target_type: 'USER', target_id: 1, details: 'Login efetuado com sucesso', timestamp: new Date().toISOString() }
+    { id: 2, username: 'admin', action_type: 'LOGIN', target_type: 'USER', target_id: 1, details: 'Login efetuado com sucesso', timestamp: new Date().toISOString() },
+    { id: 3, username: 'ana.tech', action_type: 'CREATE', target_type: 'LICENSE', target_id: 204, details: 'Atribuiu licença M365 para Ana Souza', timestamp: new Date().toISOString() }
 ];

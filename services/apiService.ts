@@ -65,6 +65,11 @@ export const getSettings = async (): Promise<AppSettings> => {
     return apiRequest('/settings');
 };
 
+export const getLicenseTotals = (): Promise<Record<string, number>> => {
+    if (isDemo()) return Promise.resolve(demo.mockLicenseTotals);
+    return apiRequest('/licenses/totals');
+};
+
 export const login = (credentials: {username: string, password?: string, ssoToken?: string}): Promise<User> => {
     if (isDemo()) {
         const user = demo.mockUsers.find(u => u.username === credentials.username) || demo.mockUsers[0];
@@ -129,7 +134,6 @@ export const deleteLicense = (id: number, username: string): Promise<void> => {
 export const getEquipmentHistory = (equipmentId: number): Promise<EquipmentHistory[]> => apiRequest(`/equipment/${equipmentId}/history`);
 export const verify2FA = (userId: number, token: string): Promise<User> => apiRequest('/verify-2fa', { method: 'POST', body: JSON.stringify({ userId, token }) });
 export const getPendingApprovals = (): Promise<{id: number, name: string, itemType: 'equipment' | 'license'}[]> => apiRequest('/approvals/pending');
-export const getLicenseTotals = (): Promise<Record<string, number>> => apiRequest('/licenses/totals');
 export const saveSettings = (settings: AppSettings, username: string): Promise<{ success: boolean; message: string; }> => apiRequest('/settings', { method: 'POST', body: JSON.stringify({ settings, username }) });
 export const getTermoTemplates = (): Promise<{ entregaTemplate: string, devolucaoTemplate: string }> => apiRequest('/config/termo-templates');
 export const generateAiReport = (query: string, data: Equipment[], username: string): Promise<{ reportData?: Equipment[], error?: string }> => apiRequest('/ai/generate-report', { method: 'POST', body: JSON.stringify({ query, data, username }) });

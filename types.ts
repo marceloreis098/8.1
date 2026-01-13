@@ -43,6 +43,7 @@ export interface Equipment {
     garantia?: string;
     patrimonio?: string;
     serial?: string;
+    rustdesk_id?: string;
     usuarioAtual?: string;
     usuarioAnterior?: string;
     local?: string;

@@ -93,15 +93,13 @@ const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({ equipment, onCl
 
                     <input type="text" name="equipamento" placeholder="Nome do Equipamento *" value={formData.equipamento || ''} onChange={handleChange} className="p-2 border dark:border-dark-border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-dark-text-primary" required />
                     <input type="text" name="serial" placeholder="Número de Série *" value={formData.serial || ''} onChange={handleChange} className="p-2 border dark:border-dark-border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-dark-text-primary" required />
+                    <input type="text" name="patrimonio" placeholder="Patrimônio" value={formData.patrimonio || ''} onChange={handleChange} className="p-2 border dark:border-dark-border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-dark-text-primary" />
                     
                     <div className="flex flex-col">
-                         <label className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1">
-                            <Icon name="MonitorSmartphone" size={14}/> RustDesk ID (Acesso Remoto)
-                         </label>
-                         <input type="text" name="rustdesk_id" placeholder="Ex: 123456789" value={formData.rustdesk_id || ''} onChange={handleChange} className="p-2 border border-orange-200 dark:border-orange-900/50 rounded-md bg-orange-50/30 dark:bg-orange-900/10 text-gray-900 dark:text-dark-text-primary" />
+                         <label className="text-xs text-orange-600 font-bold mb-1 flex items-center gap-1"><Icon name="MonitorSmartphone" size={12}/> RustDesk ID (Acesso Remoto)</label>
+                         <input type="text" name="rustdesk_id" placeholder="ID RustDesk" value={formData.rustdesk_id || ''} onChange={handleChange} className="p-2 border border-orange-200 dark:border-orange-900/50 rounded-md bg-orange-50/30 dark:bg-orange-900/10 text-gray-900 dark:text-dark-text-primary" />
                     </div>
 
-                    <input type="text" name="patrimonio" placeholder="Patrimônio" value={formData.patrimonio || ''} onChange={handleChange} className="p-2 border dark:border-dark-border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-dark-text-primary" />
                     <input type="text" name="brand" placeholder="Marca" value={formData.brand || ''} onChange={handleChange} className="p-2 border dark:border-dark-border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-dark-text-primary" />
                     <input type="text" name="model" placeholder="Modelo" value={formData.model || ''} onChange={handleChange} className="p-2 border dark:border-dark-border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-dark-text-primary" />
                     <input type="text" name="tipo" placeholder="Tipo" value={formData.tipo || ''} onChange={handleChange} className="p-2 border dark:border-dark-border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-dark-text-primary" />
@@ -179,24 +177,19 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ currentUser, companyName 
     return (
         <div className="bg-white dark:bg-dark-card p-4 sm:p-6 rounded-lg shadow-md">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-brand-dark dark:text-dark-text-primary">Inventário de Ativos</h2>
+                <h2 className="text-2xl font-bold text-brand-dark dark:text-dark-text-primary">Inventário</h2>
                 <button onClick={() => { setEditingEquipment(null); setIsModalOpen(true); }} className="bg-brand-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
                     <Icon name="Plus" size={18}/> Novo Item
                 </button>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="relative flex-1">
-                    <Icon name="Search" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input 
-                        type="text" 
-                        placeholder="Buscar por nome, serial, usuário ou RustDesk ID..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border dark:border-dark-border rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-dark-text-primary"
-                    />
-                </div>
-            </div>
+            <input 
+                type="text" 
+                placeholder="Buscar por nome, serial, usuário ou RustDesk ID..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full p-2 mb-6 border dark:border-dark-border rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-dark-text-primary"
+            />
 
             {loading ? (
                 <div className="flex justify-center py-10"><Icon name="LoaderCircle" className="animate-spin text-brand-primary" size={48} /></div>
@@ -214,24 +207,23 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ currentUser, companyName 
                         </thead>
                         <tbody>
                             {filteredEquipment.map(item => (
-                                <tr key={item.id} className="border-b dark:border-dark-border hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <tr key={item.id} className="border-b dark:border-dark-border hover:bg-gray-50 dark:hover:bg-gray-700">
                                     <td className="px-6 py-4 font-medium">{item.equipamento}</td>
                                     <td className="px-6 py-4 font-mono text-xs">{item.serial}</td>
                                     <td className="px-6 py-4">
                                         {item.rustdesk_id ? (
                                             <button 
                                                 onClick={() => handleRustDeskConnect(item.rustdesk_id)}
-                                                className="flex items-center gap-2 text-orange-600 hover:text-orange-700 font-bold bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-lg border border-orange-200 dark:border-orange-800 transition-all hover:scale-105"
-                                                title="Iniciar Acesso Remoto"
+                                                className="flex items-center gap-2 text-orange-600 hover:text-orange-700 font-bold bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded"
                                             >
                                                 <Icon name="MonitorSmartphone" size={16}/> {item.rustdesk_id}
                                             </button>
-                                        ) : <span className="text-gray-400 italic text-xs">Não vinculado</span>}
+                                        ) : <span className="text-gray-400">-</span>}
                                     </td>
                                     <td className="px-6 py-4">{item.usuarioAtual}</td>
                                     <td className="px-6 py-4 text-right flex justify-end gap-3">
-                                        <button onClick={() => { setEditingEquipment(item); setIsModalOpen(true); }} className="text-blue-600 hover:text-blue-800" title="Editar"><Icon name="Pencil" size={18} /></button>
-                                        <button className="text-red-600 hover:text-red-800" title="Excluir"><Icon name="Trash2" size={18} /></button>
+                                        <button onClick={() => { setEditingEquipment(item); setIsModalOpen(true); }} className="text-blue-600"><Icon name="Pencil" size={18} /></button>
+                                        <button onClick={() => {}} className="text-red-600"><Icon name="Trash2" size={18} /></button>
                                     </td>
                                 </tr>
                             ))}

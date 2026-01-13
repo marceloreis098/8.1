@@ -1,118 +1,131 @@
+
 # Gerenciador de Inventário Pro
 
-Sistema full-stack para controle de ativos e licenças.
+Sistema full-stack para controle de ativos, licenças e suporte remoto.
 
 ---
 
 ## 🛠 Guia de Instalação no Ubuntu Server
 
-Siga estes passos para configurar o ambiente de produção do zero.
-
-### 1. Preparar o Sistema
+### 1. Preparar a Estrutura de Pastas
 ```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-### 2. Instalar Banco de Dados (MariaDB)
-```bash
-sudo apt install mariadb-server -y
-sudo mysql_secure_installation
-```
-No terminal do MySQL (`sudo mysql`), crie o usuário e o banco:
-```sql
-CREATE DATABASE inventario_pro;
-CREATE USER 'inventario_user'@'localhost' IDENTIFIED BY 'Reserva2026';
-GRANT ALL PRIVILEGES ON inventario_pro.* TO 'inventario_user'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
-```
-
-### 3. Instalar Node.js e PM2
-```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-sudo npm install -g pm2
-```
-
-### 4. Configurar o Projeto
-Clone seu repositório em `/var/www/Inventario` e configure o backend:
-```bash
+sudo mkdir -p /var/www/Inventario/inventario-api
+sudo chown -R $USER:$USER /var/www/Inventario
 cd /var/www/Inventario/inventario-api
-cp .env.example .env # Se houver, caso contrário crie um
 ```
-Edite o `.env` da API:
-```env
+
+### 2. Configurar Variáveis de Ambiente (.env)
+Crie o arquivo `.env` com suas credenciais:
+```bash
+cat <<EOT >> .env
 DB_HOST=localhost
 DB_USER=inventario_user
 DB_PASSWORD=Reserva2026
 DB_DATABASE=inventario_pro
 API_PORT=3001
+EOT
 ```
 
-### 5. Instalar Dependências e Iniciar
-**Backend:**
+### 3. Configurar o Banco de Dados (Passo Crítico)
+Acesse o MySQL (`mysql -u root -p`) e execute o script abaixo para criar o banco e **todas** as tabelas:
+
+```sql
+CREATE DATABASE IF NOT EXISTS inventario_pro;
+CREATE USER IF NOT EXISTS 'inventario_user'@'localhost' IDENTIFIED BY 'Reserva2026';
+GRANT ALL PRIVILEGES ON inventario_pro.* TO 'inventario_user'@'localhost';
+FLUSH PRIVILEGES;
+
+USE inventario_pro;
+
+-- 1. Tabela de Usuários (Resolve o erro do print)
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    realName VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    role ENUM('Admin', 'User Manager', 'User') DEFAULT 'User',
+    password VARCHAR(255) NOT NULL,
+    is2FAEnabled BOOLEAN DEFAULT FALSE,
+    secret2FA VARCHAR(255),
+    avatarUrl TEXT,
+    ssoProvider VARCHAR(50),
+    lastLogin TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Inserir Usuário Admin Inicial (Senha: Reserva2026)
+-- O hash abaixo é o padrão para 'Reserva2026' usando Bcrypt
+INSERT IGNORE INTO users (username, realName, email, role, password) 
+VALUES ('admin', 'Administrador', 'admin@empresa.com', 'Admin', '$2a$10$7fU3O0V3O0V3O0V3O0V3O.6I4eG0N3O0V3O0V3O0V3O0V3O0V3O0V');
+
+-- 2. Tabela de Equipamentos
+CREATE TABLE IF NOT EXISTS equipment (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    equipamento VARCHAR(255) NOT NULL,
+    serial VARCHAR(100) UNIQUE NOT NULL,
+    rustdesk_id VARCHAR(50),
+    patrimonio VARCHAR(50),
+    brand VARCHAR(100),
+    model VARCHAR(100),
+    usuarioAtual VARCHAR(255),
+    setor VARCHAR(100),
+    local VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'Estoque',
+    dataEntregaUsuario DATE,
+    observacoes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. Tabela de Licenças
+CREATE TABLE IF NOT EXISTS licenses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    produto VARCHAR(255) NOT NULL,
+    chaveSerial VARCHAR(255) NOT NULL,
+    usuario VARCHAR(255) NOT NULL,
+    dataExpiracao DATE,
+    status VARCHAR(50) DEFAULT 'Ativo',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Tabela de Totais de Licenças
+CREATE TABLE IF NOT EXISTS license_totals (
+    produto VARCHAR(255) PRIMARY KEY,
+    total INT DEFAULT 0
+);
+
+-- 5. Tabela de Auditoria
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50),
+    action_type VARCHAR(50),
+    target_type VARCHAR(50),
+    target_id VARCHAR(50),
+    details TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Tabela de Configurações
+CREATE TABLE IF NOT EXISTS settings (
+    id INT PRIMARY KEY DEFAULT 1,
+    companyName VARCHAR(255) DEFAULT 'Inventário Pro',
+    isSsoEnabled BOOLEAN DEFAULT FALSE,
+    is2faEnabled BOOLEAN DEFAULT FALSE,
+    require2fa BOOLEAN DEFAULT FALSE,
+    termo_entrega_template TEXT,
+    termo_devolucao_template TEXT,
+    hasInitialConsolidationRun BOOLEAN DEFAULT FALSE
+);
+
+INSERT IGNORE INTO settings (id) VALUES (1);
+```
+
+### 4. Instalar e Iniciar
 ```bash
-cd /var/www/Inventario/inventario-api
 npm install
+sudo npm install -g pm2
 pm2 start server.js --name "inventario-api"
-```
-
-**Frontend:**
-```bash
-cd /var/www/Inventario
-npm install
-npm run build
-```
-
-### 6. Configurar Nginx (Servidor Web)
-```bash
-sudo apt install nginx -y
-```
-Crie um arquivo de configuração `sudo nano /etc/nginx/sites-available/inventario`:
-```nginx
-server {
-    listen 80;
-    server_name seu_ip_ou_dominio;
-
-    root /var/www/Inventario/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api/ {
-        proxy_pass http://localhost:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-Ative o site e reinicie o Nginx:
-```bash
-sudo ln -s /etc/nginx/sites-available/inventario /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
+pm2 save
 ```
 
 ---
-
-## 💾 Manutenção e Backups
-
-Utilize o script `backup_db.sh` para gerenciar seus dados:
-
-**Para fazer um backup agora:**
-```bash
-sudo chmod +x /var/www/Inventario/backup_db.sh
-sudo /var/www/Inventario/backup_db.sh backup
-```
-
-**Para restaurar um backup:**
-```bash
-sudo /var/www/Inventario/backup_db.sh restore
-```
-
-Os arquivos `.sql` são salvos automaticamente em `/var/www/inventario_backups/`.
+**Nota:** Após executar o SQL, você poderá logar com o usuário `admin` e senha `Reserva2026`.

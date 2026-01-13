@@ -3,13 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { login, checkApiStatus } from '../services/apiService';
 import Icon from './common/Icon';
+import { developerPhoto, developerEmail, developerCopyright } from '../services/devConfig';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
   isSsoEnabled: boolean;
 }
-
-const developerPhoto = "data:image/jpeg;base64,..."; // Mantendo a foto do dev
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess, isSsoEnabled }) => {
   const [username, setUsername] = useState('');
@@ -18,6 +17,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, isSsoEnabled }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [serverOnline, setServerOnline] = useState<boolean | null>(null);
   const isDemoMode = localStorage.getItem('demo_mode') === 'true';
+  const chatLink = `https://mail.google.com/chat/u/0/#chat/dm/${developerEmail}`;
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -164,16 +164,22 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, isSsoEnabled }) => {
         </form>
       </div>
       <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-3 text-xs">
-        <div className="relative group">
+        <a 
+            href={chatLink} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="relative group block"
+            title="Chamar no Google Chat"
+        >
              <img
               src={developerPhoto}
               alt="Dev"
               className="w-8 h-8 rounded-full object-cover border-2 border-gray-300 dark:border-dark-border bg-gray-200 transition-transform duration-300 ease-out origin-bottom hover:scale-[5] hover:z-50 hover:shadow-2xl cursor-pointer relative"
             />
-        </div>
+        </a>
         <div className="text-left text-gray-500 dark:text-dark-text-secondary">
-          <p className="font-semibold">marcelo.reis@usereserva.com</p>
-          <p className="text-gray-400 dark:text-gray-500">&copy; 2025 Dev: Marcelo Reis</p>
+          <p className="font-semibold">{developerEmail}</p>
+          <p className="text-gray-400 dark:text-gray-500">&copy; {developerCopyright}</p>
         </div>
       </div>
     </div>

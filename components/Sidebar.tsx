@@ -3,6 +3,7 @@ import React from 'react';
 import { Page } from '../types';
 import Icon from './common/Icon';
 import { icons } from 'lucide-react';
+import { developerPhoto, developerEmail, developerCopyright } from '../services/devConfig';
 
 interface SidebarProps {
   activePage: Page;
@@ -21,9 +22,10 @@ const pageIcons: { [key in Page]: keyof typeof icons } = {
     'Configurações': 'Settings',
     'Auditoria': 'History',
 }
-const developerPhoto = "data:image/jpeg;base64,..."; // Mantendo a foto do dev
 
 const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, pages, isSidebarOpen, setIsSidebarOpen }) => {
+  const chatLink = `https://mail.google.com/chat/u/0/#chat/dm/${developerEmail}`;
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -94,7 +96,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, pages, isS
         {/* Rodapé com Info do Desenvolvedor */}
         <div className="border-t dark:border-dark-border p-4 bg-gray-50 dark:bg-dark-bg/50">
             <div className={`flex items-center gap-3 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-                <div className="relative group">
+                <a 
+                    href={chatLink} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="relative group block"
+                    title="Chamar no Google Chat"
+                >
                     <img
                         src={developerPhoto}
                         alt="Dev"
@@ -104,15 +112,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, pages, isS
                             hover:scale-[5] hover:z-50 hover:shadow-2xl cursor-pointer relative
                         `}
                     />
-                </div>
+                </a>
                 
                 {isSidebarOpen && (
                     <div className="flex-1 min-w-0 overflow-hidden">
                         <p className="text-xs font-bold text-brand-secondary dark:text-dark-text-primary truncate">
-                            marcelo.reis@usereserva.com
+                            {developerEmail}
                         </p>
                         <p className="text-[10px] text-gray-500 dark:text-dark-text-secondary truncate">
-                            &copy; 2025 Dev: Marcelo Reis
+                            &copy; {developerCopyright}
                         </p>
                     </div>
                 )}

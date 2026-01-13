@@ -1,26 +1,49 @@
+
 import { User, Equipment, License, UserRole, EquipmentHistory, AuditLogEntry, AppSettings, Ticket } from '../types';
 
 const handleResponse = async (response: Response) => {
     if (response.status === 204) return;
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
-        throw new Error(errorData.message || 'An unknown error occurred');
+        let errorMessage = `Erro HTTP! Status: ${response.status}`;
+        try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+            // Se não for JSON, mantém a mensagem padrão com o status
+        }
+        throw new Error(errorMessage);
     }
     return response.json();
 };
 
-const getApiBaseUrl = () => `/api`;
+// --- CONFIGURAÇÃO DE URL DINÂMICA ---
+const getApiBaseUrl = () => {
+    const { protocol, hostname } = window.location;
+    // Força a porta 3001 para a API
+    return `${protocol}//${hostname}:3001/api`;
+};
 
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+    const baseUrl = getApiBaseUrl();
+    // Garante que o endpoint comece com / e o baseUrl não termine com /
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${baseUrl}${cleanEndpoint}`;
+
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers,
     };
-    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, { ...options, headers });
-    return handleResponse(response);
+
+    try {
+        const response = await fetch(url, { ...options, headers });
+        return await handleResponse(response);
+    } catch (error: any) {
+        console.error(`Falha na requisição para ${url}:`, error);
+        throw error;
+    }
 };
 
-// --- DATA FETCHING (100% REAL API) ---
+// --- DATA FETCHING ---
 
 export const getTickets = async (user: User): Promise<Ticket[]> => {
     return apiRequest(`/tickets?userId=${user.id}&role=${user.role}`);
@@ -56,15 +79,16 @@ export const login = (credentials: {username: string, password?: string, ssoToke
 
 export const checkApiStatus = async (): Promise<{ ok: boolean, message?: string }> => {
     try {
-        const response = await fetch(`${getApiBaseUrl()}/`, { cache: 'no-store' }); 
-        if (!response.ok && response.status !== 404) throw new Error(`Status: ${response.status}`);
-        return { ok: true };
+        const baseUrl = getApiBaseUrl();
+        // Chamada direta para o status sem o helper para evitar recursão ou logs excessivos
+        const response = await fetch(`${baseUrl}/status`, { cache: 'no-store' }); 
+        return { ok: response.ok };
     } catch (error: any) {
-        return { ok: false, message: 'Falha ao conectar com a API.' };
+        return { ok: false, message: 'API Offline' };
     }
 };
 
-// --- WRITE OPERATIONS ---
+// --- OPERAÇÕES DE ESCRITA ---
 
 export const createTicket = async (ticket: Partial<Ticket>, username: string): Promise<Ticket> => {
     return apiRequest('/tickets', { method: 'POST', body: JSON.stringify({ ticket, username }) });
@@ -98,7 +122,6 @@ export const deleteLicense = (id: number, username: string): Promise<void> => {
     return apiRequest(`/licenses/${id}`, { method: 'DELETE', body: JSON.stringify({ username }) });
 };
 
-// --- OUTRAS FUNÇÕES ---
 export const getEquipmentHistory = (equipmentId: number): Promise<EquipmentHistory[]> => apiRequest(`/equipment/${equipmentId}/history`);
 export const verify2FA = (userId: number, token: string): Promise<User> => apiRequest('/verify-2fa', { method: 'POST', body: JSON.stringify({ userId, token }) });
 export const getPendingApprovals = (): Promise<{id: number, name: string, itemType: 'equipment' | 'license'}[]> => apiRequest('/approvals/pending');

@@ -1,28 +1,32 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import EquipmentList from './components/EquipmentList';
 import LicenseControl from './components/LicenseControl';
+import ServiceDesk from './components/ServiceDesk'; // Novo
 import UserManagement from './components/UserManagement';
 import Settings from './components/Settings';
 import AuditLog from './components/AuditLog';
 import Login from './components/Login';
 import TwoFactorAuth from './components/TwoFactorAuth';
-import TwoFactorSetup from './components/TwoFactorSetup'; // Novo componente
+import TwoFactorSetup from './components/TwoFactorSetup';
 import { Page, User, UserRole } from './types';
 import { getSettings } from './services/apiService';
 import AIAssistantWidget from './components/AIAssistantWidget';
+import Icon from './components/common/Icon';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userFor2FA, setUserFor2FA] = useState<User | null>(null);
-  const [userFor2FASetup, setUserFor2FASetup] = useState<User | null>(null); // Novo estado
+  const [userFor2FASetup, setUserFor2FASetup] = useState<User | null>(null);
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [companyName, setCompanyName] = useState('MRR INFORMATICA');
   const [isSsoEnabled, setIsSsoEnabled] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(localStorage.getItem('demo_mode') === 'true');
 
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
@@ -39,6 +43,13 @@ const App: React.FC = () => {
       document.documentElement.classList.add('dark');
       setIsDarkMode(true);
     }
+
+    // Monitor demo mode changes
+    const handleStorageChange = () => {
+      setIsDemoMode(localStorage.getItem('demo_mode') === 'true');
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
   
   const fetchSettings = useCallback(async () => {
@@ -53,7 +64,7 @@ const App: React.FC = () => {
 
     useEffect(() => {
         fetchSettings();
-    }, [fetchSettings]);
+    }, [fetchSettings, isDemoMode]);
 
 
   const handleLoginSuccess = (user: User & { requires2FASetup?: boolean }) => {
@@ -85,7 +96,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     setUserFor2FA(null);
-    setUserFor2FASetup(null); // Limpar estado
+    setUserFor2FASetup(null);
     localStorage.removeItem('currentUser');
     sessionStorage.removeItem('2fa_verified');
     setActivePage('Dashboard');
@@ -114,6 +125,7 @@ const App: React.FC = () => {
     'Dashboard',
     'Inventário de Equipamentos',
     'Controle de Licenças',
+    'Service Desk', // Sempre disponível
   ];
 
   if (currentUser && [UserRole.Admin, UserRole.UserManager].includes(currentUser.role)) {
@@ -135,6 +147,8 @@ const App: React.FC = () => {
         return <EquipmentList currentUser={currentUser} companyName={companyName} />;
       case 'Controle de Licenças':
         return <LicenseControl currentUser={currentUser} />;
+      case 'Service Desk':
+        return <ServiceDesk currentUser={currentUser} />;
       case 'Usuários e Permissões':
         return <UserManagement currentUser={currentUser} />;
       case 'Auditoria':
@@ -159,27 +173,41 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-dark-bg text-gray-800 dark:text-dark-text-primary">
-      <Sidebar
-        activePage={activePage}
-        setActivePage={setActivePage}
-        pages={pages}
-        isSidebarOpen={isSidebarOpen}
-        setIsSidebarOpen={setIsSidebarOpen}
-      />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          pageTitle={activePage}
-          user={currentUser}
-          onLogout={handleLogout}
-          toggleTheme={toggleTheme}
-          isDarkMode={isDarkMode}
+    <div className="flex flex-col h-screen bg-gray-100 dark:bg-dark-bg text-gray-800 dark:text-dark-text-primary">
+      {isDemoMode && (
+        <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white py-2 px-4 text-center text-sm font-bold flex items-center justify-center gap-2 shadow-md z-50">
+           <Icon name="TriangleAlert" size={18} />
+           MODO DE DEMONSTRAÇÃO ATIVO - DADOS FICTÍCIOS CARREGADOS
+           <button 
+            onClick={() => { localStorage.setItem('demo_mode', 'false'); window.location.reload(); }}
+            className="ml-4 underline hover:text-white/80"
+           >
+             Desativar
+           </button>
+        </div>
+      )}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          activePage={activePage}
+          setActivePage={setActivePage}
+          pages={pages}
+          isSidebarOpen={isSidebarOpen}
           setIsSidebarOpen={setIsSidebarOpen}
-          onUserUpdate={handleUserUpdate}
         />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-dark-bg p-4 sm:p-6">
-          {renderPage()}
-        </main>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Header
+            pageTitle={activePage}
+            user={currentUser}
+            onLogout={handleLogout}
+            toggleTheme={toggleTheme}
+            isDarkMode={isDarkMode}
+            setIsSidebarOpen={setIsSidebarOpen}
+            onUserUpdate={handleUserUpdate}
+          />
+          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-dark-bg p-4 sm:p-6">
+            {renderPage()}
+          </main>
+        </div>
       </div>
       <AIAssistantWidget currentUser={currentUser} />
     </div>

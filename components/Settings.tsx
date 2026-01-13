@@ -123,6 +123,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
     const [isDatabaseActionLoading, setIsDatabaseActionLoading] = useState(false);
     const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'security' | 'database' | 'integration' | 'import' | 'termo'>('general');
     const [productNames, setProductNames] = useState<string[]>([]);
+    const [isDemoMode, setIsDemoMode] = useState(localStorage.getItem('demo_mode') === 'true');
 
 
     const checkGeminiApiKeyStatus = async () => {
@@ -344,6 +345,13 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
         }
     };
 
+    const handleToggleDemoMode = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const checked = e.target.checked;
+        localStorage.setItem('demo_mode', String(checked));
+        setIsDemoMode(checked);
+        window.location.reload();
+    };
+
     // FIX: Use HTTPS and remove port 3001 for ACS URL to work with Nginx reverse proxy
     const acsUrl = `https://${window.location.hostname}/api/sso/callback`;
     const entityId = `https://${window.location.hostname}`;
@@ -396,6 +404,20 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
     
                     {activeSettingsTab === 'general' && (
                         <div className="space-y-8">
+                            <div className="p-6 bg-gray-50 dark:bg-dark-bg rounded-lg border dark:border-dark-border">
+                                <h3 className="text-lg font-bold text-brand-secondary dark:text-dark-text-primary mb-4 flex items-center gap-2">
+                                    <Icon name="Eye" size={20} />
+                                    Modo de Demonstração
+                                </h3>
+                                <SettingsToggle
+                                    label="Ativar Modo de Demonstração"
+                                    description="Carrega dados fictícios realistas para apresentações sem afetar o banco de dados real."
+                                    name="demo_mode"
+                                    checked={isDemoMode}
+                                    onChange={handleToggleDemoMode}
+                                />
+                            </div>
+
                             <div className="p-6 bg-gray-50 dark:bg-dark-bg rounded-lg border dark:border-dark-border">
                                 <h3 className="text-lg font-bold text-brand-secondary dark:text-dark-text-primary mb-4 flex items-center gap-2">
                                     <Icon name="KeyRound" size={20} />

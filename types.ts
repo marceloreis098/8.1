@@ -1,11 +1,27 @@
+
 // types.ts
 
-export type Page = 'Dashboard' | 'Inventário de Equipamentos' | 'Controle de Licenças' | 'Usuários e Permissões' | 'Configurações' | 'Auditoria';
+export type Page = 'Dashboard' | 'Inventário de Equipamentos' | 'Controle de Licenças' | 'Usuários e Permissões' | 'Configurações' | 'Auditoria' | 'Service Desk';
 
 export enum UserRole {
     Admin = 'Admin',
     UserManager = 'User Manager',
     User = 'User'
+}
+
+export enum TicketStatus {
+    Open = 'Aberto',
+    InProgress = 'Em Atendimento',
+    WaitingUser = 'Aguardando Usuário',
+    Resolved = 'Resolvido',
+    Closed = 'Fechado'
+}
+
+export enum TicketPriority {
+    Low = 'Baixa',
+    Medium = 'Média',
+    High = 'Alta',
+    Critical = 'Crítica'
 }
 
 export interface User {
@@ -47,7 +63,6 @@ export interface Equipment {
     approval_status?: 'pending_approval' | 'approved' | 'rejected';
     rejection_reason?: string;
     created_by_id?: number;
-    // Novos campos adicionados
     identificador?: string;
     nomeSO?: string;
     memoriaFisicaTotal?: string;
@@ -56,6 +71,25 @@ export interface Equipment {
     cidade?: string;
     estadoProvincia?: string;
     condicaoTermo?: 'Assinado - Entrega' | 'Assinado - Devolução' | 'Pendente' | 'N/A';
+}
+
+export interface Ticket {
+    id: number;
+    title: string;
+    description: string;
+    category: 'Hardware' | 'Software' | 'Rede' | 'Acesso' | 'Outros';
+    status: TicketStatus;
+    priority: TicketPriority;
+    requester_id: number;
+    requester_name: string;
+    technician_id?: number;
+    technician_name?: string;
+    equipment_id?: number;
+    equipment_serial?: string;
+    remote_link?: string;
+    sla_due?: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface License {
@@ -92,7 +126,7 @@ export interface AuditLogEntry {
     id: number;
     username: string;
     action_type: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | '2FA_ENABLE' | '2FA_DISABLE' | 'SETTINGS_UPDATE';
-    target_type: 'EQUIPMENT' | 'LICENSE' | 'USER' | 'SETTINGS' | 'PRODUCT' | 'TOTALS' | 'DATABASE';
+    target_type: 'EQUIPMENT' | 'LICENSE' | 'USER' | 'SETTINGS' | 'PRODUCT' | 'TOTALS' | 'DATABASE' | 'TICKET';
     target_id: number | string | null;
     details: string;
     timestamp: string;

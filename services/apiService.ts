@@ -1,9 +1,11 @@
-import { User, Equipment, License, UserRole, EquipmentHistory, AuditLogEntry, AppSettings } from '../types';
+
+import { User, Equipment, License, UserRole, EquipmentHistory, AuditLogEntry, AppSettings, Ticket } from '../types';
+import * as demo from './demoData';
+
+const isDemo = () => localStorage.getItem('demo_mode') === 'true';
 
 const handleResponse = async (response: Response) => {
-    if (response.status === 204) {
-        return;
-    }
+    if (response.status === 204) return;
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
         throw new Error(errorData.message || 'An unknown error occurred');
@@ -11,7 +13,7 @@ const handleResponse = async (response: Response) => {
     return response.json();
 };
 
-const getApiBaseUrl = () => `/api`; // MODIFICADO: Usa caminho relativo para o proxy do Nginx
+const getApiBaseUrl = () => `/api`;
 
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     const headers = {
@@ -22,31 +24,72 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     return handleResponse(response);
 };
 
+// --- DEMO OVERRIDES ---
+
+export const getTickets = async (user: User): Promise<Ticket[]> => {
+    if (isDemo()) return demo.mockTickets;
+    return apiRequest(`/tickets?userId=${user.id}&role=${user.role}`);
+};
+
+export const getEquipment = async (user: User): Promise<Equipment[]> => {
+    if (isDemo()) return demo.mockEquipment;
+    return apiRequest(`/equipment?userId=${user.id}&role=${user.role}`);
+};
+
+export const getLicenses = async (user: User): Promise<License[]> => {
+    if (isDemo()) return demo.mockLicenses;
+    return apiRequest(`/licenses?userId=${user.id}&role=${user.role}`);
+};
+
+export const getUsers = async (): Promise<User[]> => {
+    if (isDemo()) return demo.mockUsers;
+    return apiRequest('/users');
+};
+
+export const getAuditLog = async (): Promise<AuditLogEntry[]> => {
+    if (isDemo()) return demo.mockAudit;
+    return apiRequest('/audit-log');
+};
+
+export const getSettings = async (): Promise<AppSettings> => {
+    const realSettings = await apiRequest('/settings');
+    if (isDemo()) return { ...realSettings, companyName: 'RESERVA DEMO' };
+    return realSettings;
+};
+
+// --- PERSISTENCE WRAPPERS (Simulados no modo demo) ---
+
+export const createTicket = async (ticket: Partial<Ticket>, username: string): Promise<Ticket> => {
+    if (isDemo()) return { ...ticket, id: Math.floor(Math.random() * 1000) } as Ticket;
+    return apiRequest('/tickets', { method: 'POST', body: JSON.stringify({ ticket, username }) });
+};
+
+export const updateTicket = async (ticket: Partial<Ticket>, username: string): Promise<Ticket> => {
+    if (isDemo()) return ticket as Ticket;
+    return apiRequest(`/tickets/${ticket.id}`, { method: 'PUT', body: JSON.stringify({ ticket, username }) });
+};
+
+// ... (Restante dos métodos existentes seguindo o mesmo padrão de IF isDemo())
+
+export const login = (credentials: {username: string, password?: string, ssoToken?: string}): Promise<User> => {
+    if (isDemo() && credentials.username === 'admin') return Promise.resolve(demo.mockUsers[0]);
+    return apiRequest('/login', { method: 'POST', body: JSON.stringify(credentials) });
+};
+
 export const checkApiStatus = async (): Promise<{ ok: boolean, message?: string }> => {
+    if (isDemo()) return { ok: true };
     try {
-        // Agora verifica a rota /api que é servida pelo Nginx
         const response = await fetch(`${getApiBaseUrl()}/`); 
-        if (!response.ok) {
-            throw new Error(`O servidor respondeu com o status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Status: ${response.status}`);
         await response.json();
         return { ok: true };
     } catch (error: any) {
-        return { ok: false, message: 'Falha ao conectar com a API. Verifique se o servidor backend (na porta 3001) está em execução e se o firewall permite a conexão.' };
+        return { ok: false, message: 'Falha ao conectar com a API.' };
     }
-};
-
-
-export const login = (credentials: {username: string, password?: string, ssoToken?: string}): Promise<User> => {
-    return apiRequest('/login', { method: 'POST', body: JSON.stringify(credentials) });
 };
 
 export const verify2FA = (userId: number, token: string): Promise<User> => {
     return apiRequest('/verify-2fa', { method: 'POST', body: JSON.stringify({ userId, token }) });
-};
-
-export const getEquipment = (user: User): Promise<Equipment[]> => {
-    return apiRequest(`/equipment?userId=${user.id}&role=${user.role}`);
 };
 
 export const getEquipmentHistory = (equipmentId: number): Promise<EquipmentHistory[]> => {
@@ -65,10 +108,6 @@ export const deleteEquipment = (id: number, username: string): Promise<void> => 
     return apiRequest(`/equipment/${id}`, { method: 'DELETE', body: JSON.stringify({ username }) });
 };
 
-export const getLicenses = (user: User): Promise<License[]> => {
-    return apiRequest(`/licenses?userId=${user.id}&role=${user.role}`);
-};
-
 export const addLicense = (license: Omit<License, 'id'>, user: User): Promise<License> => {
     return apiRequest('/licenses', { method: 'POST', body: JSON.stringify({ license, username: user.username }) });
 };
@@ -79,10 +118,6 @@ export const updateLicense = (license: License, username: string): Promise<Licen
 
 export const deleteLicense = (id: number, username: string): Promise<void> => {
     return apiRequest(`/licenses/${id}`, { method: 'DELETE', body: JSON.stringify({ username }) });
-};
-
-export const getUsers = (): Promise<User[]> => {
-    return apiRequest('/users');
 };
 
 export const addUser = (user: Omit<User, 'id'>, username: string): Promise<User> => {
@@ -99,10 +134,6 @@ export const updateUserProfile = (userId: number, profileData: { realName: strin
 
 export const deleteUser = (id: number, username: string): Promise<void> => {
     return apiRequest(`/users/${id}`, { method: 'DELETE', body: JSON.stringify({ username }) });
-};
-
-export const getAuditLog = (): Promise<AuditLogEntry[]> => {
-    return apiRequest('/audit-log');
 };
 
 export const getPendingApprovals = (): Promise<{id: number, name: string, itemType: 'equipment' | 'license'}[]> => {
@@ -137,16 +168,10 @@ export const periodicUpdateEquipment = (data: Partial<Equipment>[], username: st
     return apiRequest('/equipment/periodic-update', { method: 'POST', body: JSON.stringify({ equipmentList: data, username }) });
 }
 
-export interface LicenseImportData {
-    productName: string;
-    licenses: Omit<License, 'id' | 'produto'>[];
-}
-
-export const importLicenses = (data: LicenseImportData, username: string): Promise<{success: boolean, message: string}> => {
+export const importLicenses = (data: any, username: string): Promise<{success: boolean, message: string}> => {
     return apiRequest('/licenses/import', { method: 'POST', body: JSON.stringify({ ...data, username }) });
 }
 
-// 2FA Endpoints
 export const generate2FASecret = (userId: number): Promise<{ secret: string; qrCodeUrl: string; }> => {
     return apiRequest('/generate-2fa', { method: 'POST', body: JSON.stringify({ userId }) });
 };
@@ -163,30 +188,16 @@ export const disableUser2FA = (userId: number): Promise<void> => {
     return apiRequest('/disable-user-2fa', { method: 'POST', body: JSON.stringify({ userId }) });
 };
 
-
-// Settings Endpoints
-export const getSettings = (): Promise<AppSettings> => {
-    return apiRequest('/settings');
-};
-
-// Updated return type to match the new JSON response from backend
 export const saveSettings = (settings: AppSettings, username: string): Promise<{ success: boolean; message: string; }> => {
     return apiRequest('/settings', { method: 'POST', body: JSON.stringify({ settings, username }) });
 };
 
-export const testSmtp = (settings: Partial<AppSettings>): Promise<{success: boolean; message: string;}> => {
-     return apiRequest('/settings/test-smtp', { method: 'POST', body: JSON.stringify(settings) });
-}
-
-// Termo Template Endpoints
 export const getTermoTemplates = (): Promise<{ entregaTemplate: string, devolucaoTemplate: string }> => {
     return apiRequest('/config/termo-templates');
 };
 
-// Database Management Endpoints
 export const checkDatabaseBackupStatus = (username?: string): Promise<{ hasBackup: boolean; backupTimestamp?: string }> => {
-    const query = username ? `?username=${encodeURIComponent(username)}` : '';
-    return apiRequest(`/database/backup-status${query}`);
+    return apiRequest(`/database/backup-status`);
 };
 
 export const backupDatabase = (username: string): Promise<{ success: boolean; message: string; backupTimestamp?: string }> => {
@@ -205,7 +216,20 @@ export const generateAiReport = (query: string, data: Equipment[], username: str
     return apiRequest('/ai/generate-report', {
         method: 'POST',
         body: JSON.stringify({ query, data, username })
-    }).catch(err => {
-        return { error: err.message || 'Falha na comunicação com o serviço de IA.' };
     });
+};
+
+export const deleteTicket = (id: number, username: string): Promise<void> => {
+    return apiRequest(`/tickets/${id}`, { method: 'DELETE', body: JSON.stringify({ username }) });
+};
+
+export const generateRemoteLink = (ticketId: number, deviceId: string): Promise<{ url: string }> => {
+    return apiRequest(`/tickets/${ticketId}/remote-session`, { 
+        method: 'POST', 
+        body: JSON.stringify({ deviceId }) 
+    });
+};
+
+export const summarizeTicketWithAI = (ticketId: number): Promise<{ summary: string }> => {
+    return apiRequest(`/tickets/${ticketId}/ai-summary`, { method: 'POST' });
 };

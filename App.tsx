@@ -44,12 +44,13 @@ const App: React.FC = () => {
       setIsDarkMode(true);
     }
 
+    // Listener para mudanças no modo demo via localStorage (outras abas ou componentes)
     const interval = setInterval(() => {
         const currentMode = localStorage.getItem('demo_mode') === 'true';
         if (currentMode !== isDemoMode) {
             setIsDemoMode(currentMode);
         }
-    }, 1000);
+    }, 500);
     
     return () => clearInterval(interval);
   }, [isDemoMode]);
@@ -60,7 +61,7 @@ const App: React.FC = () => {
             setCompanyName(settings.companyName || 'MRR INFORMATICA');
             setIsSsoEnabled(settings.isSsoEnabled || false);
         } catch (error) {
-            console.error("Failed to fetch settings:", error);
+            console.error("Failed to fetch settings from API:", error);
         }
     }, []);
 
@@ -70,7 +71,6 @@ const App: React.FC = () => {
 
 
   const handleLoginSuccess = (user: User & { requires2FASetup?: boolean }) => {
-    setIsDemoMode(localStorage.getItem('demo_mode') === 'true');
     if (user.requires2FASetup) {
       setUserFor2FASetup(user);
     } else if (user.is2FAEnabled) {
@@ -106,12 +106,15 @@ const App: React.FC = () => {
   };
 
   const deactivateDemoMode = () => {
+    console.log("Desativando Modo Demo e limpando caches...");
     localStorage.setItem('demo_mode', 'false');
     localStorage.removeItem('currentUser');
     sessionStorage.removeItem('2fa_verified');
+    // Forçar limpeza de estados
     setIsDemoMode(false);
     setCurrentUser(null);
-    window.location.reload();
+    // Recarregar a página para garantir que o apiService use o novo valor de demo_mode
+    window.location.href = window.location.origin;
   };
   
   const handleUserUpdate = (updatedUser: User) => {
@@ -149,7 +152,6 @@ const App: React.FC = () => {
     pages.push('Configurações');
   }
 
-
   const renderPage = () => {
     if (!currentUser) return null;
     switch (activePage) {
@@ -178,9 +180,9 @@ const App: React.FC = () => {
        MODO DE DEMONSTRAÇÃO ATIVO - DADOS FICTÍCIOS
        <button 
         onClick={deactivateDemoMode}
-        className="ml-4 bg-white/20 hover:bg-white/30 px-3 py-1 rounded border border-white/50 transition-colors"
+        className="ml-4 bg-white/20 hover:bg-white/30 px-3 py-1 rounded border border-white/50 transition-all hover:scale-105 active:scale-95"
        >
-         Voltar ao Sistema Real (Produção)
+         Sair e Voltar ao Sistema Real (MariaDB)
        </button>
     </div>
   );

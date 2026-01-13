@@ -2,7 +2,7 @@
 import { User, Equipment, License, UserRole, EquipmentHistory, AuditLogEntry, AppSettings, Ticket } from '../types';
 import * as demo from './demoData';
 
-// Função para checar o modo demo SEMPRE do localStorage para ser dinâmico
+// Função para checar o modo demo SEMPRE do localStorage para ser dinâmico em tempo real
 const isDemo = () => localStorage.getItem('demo_mode') === 'true';
 
 const handleResponse = async (response: Response) => {
@@ -149,7 +149,7 @@ export const generate2FASecret = (userId: number): Promise<{ secret: string; qrC
 export const enable2FA = (userId: number, token: string): Promise<void> => apiRequest('/enable-2fa', { method: 'POST', body: JSON.stringify({ userId, token }) });
 export const disable2FA = (userId: number): Promise<void> => apiRequest('/disable-2fa', { method: 'POST', body: JSON.stringify({ userId }) });
 export const disableUser2FA = (userId: number): Promise<void> => apiRequest('/disable-user-2fa', { method: 'POST', body: JSON.stringify({ userId }) });
-export const checkDatabaseBackupStatus = (username?: string): Promise<{ hasBackup: boolean; backupTimestamp?: string }> => apiRequest(`/database/backup-status`);
+export const checkDatabaseBackupStatus = (username?: string): Promise<{ hasBackup: boolean; backupTimestamp?: string }> => apiRequest(`/database/backup-status`).catch(() => ({ hasBackup: false }));
 export const backupDatabase = (username: string): Promise<{ success: boolean; message: string; backupTimestamp?: string }> => apiRequest('/database/backup', { method: 'POST', body: JSON.stringify({ username }) });
 export const restoreDatabase = (username: string): Promise<{ success: boolean; message: string }> => apiRequest('/database/restore', { method: 'POST', body: JSON.stringify({ username }) });
 export const clearDatabase = (username: string): Promise<{ success: boolean; message: string }> => apiRequest('/database/clear', { method: 'POST', body: JSON.stringify({ username }) });

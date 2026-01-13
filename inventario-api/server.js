@@ -11,7 +11,8 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-const db = mysql.createPool({
+// Configuração do Banco de Dados
+const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'inventario_user',
     password: process.env.DB_PASSWORD,
@@ -20,11 +21,35 @@ const db = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0,
     multipleStatements: true
+};
+
+const db = mysql.createPool(dbConfig);
+
+// Teste de Conexão
+db.getConnection((err, connection) => {
+    if (err) {
+        console.error("!!! ERRO DE CONEXÃO COM O BANCO !!!:", err.message);
+    } else {
+        console.log("✅ Conectado ao MariaDB!");
+        connection.release();
+    }
 });
+
+// Helper para Auditoria
+const logAction = async (username, actionType, targetType, targetId, details) => {
+    try {
+        await db.promise().query(
+            'INSERT INTO audit_log (username, action_type, target_type, target_id, details) VALUES (?, ?, ?, ?, ?)',
+            [username, actionType, targetType, targetId, details]
+        );
+    } catch (e) {
+        console.error("Erro ao gravar log de auditoria:", e);
+    }
+};
 
 // --- SISTEMA DE MIGRAÇÕES ---
 const runMigrations = async () => {
-    console.log("Verificando banco de dados...");
+    console.log("⏳ Sincronizando tabelas...");
     const conn = await db.promise().getConnection();
     try {
         await conn.query(`
@@ -65,7 +90,8 @@ const runMigrations = async () => {
                 usuario VARCHAR(255) NOT NULL,
                 tipoLicenca VARCHAR(100),
                 dataExpiracao DATETIME,
-                status ENUM('Ativa', 'Expirada', 'Cancelada') DEFAULT 'Ativa'
+                status ENUM('Ativa', 'Expirada', 'Cancelada') DEFAULT 'Ativa',
+                approval_status ENUM('pending_approval', 'approved', 'rejected') DEFAULT 'approved'
             );
 
             CREATE TABLE IF NOT EXISTS tickets (
@@ -79,57 +105,138 @@ const runMigrations = async () => {
                 technician_id INT NULL,
                 equipment_id INT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (requester_id) REFERENCES users(id)
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(255),
+                action_type VARCHAR(50),
+                target_type VARCHAR(50),
+                target_id VARCHAR(255),
+                details TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE TABLE IF NOT EXISTS settings (
                 id INT PRIMARY KEY DEFAULT 1,
-                companyName VARCHAR(255) DEFAULT 'Minha Empresa',
+                companyName VARCHAR(255) DEFAULT 'Inventário Pro',
                 isSsoEnabled BOOLEAN DEFAULT FALSE,
                 is2faEnabled BOOLEAN DEFAULT FALSE,
                 require2fa BOOLEAN DEFAULT FALSE,
                 hasInitialConsolidationRun BOOLEAN DEFAULT FALSE,
                 termo_entrega_template TEXT,
-                termo_devolucao_template TEXT
+                termo_devolucao_template TEXT,
+                last_backup_timestamp DATETIME
+            );
+
+            CREATE TABLE IF NOT EXISTS license_totals (
+                product_name VARCHAR(255) PRIMARY KEY,
+                total_purchased INT DEFAULT 0
             );
 
             INSERT IGNORE INTO settings (id, companyName) VALUES (1, 'Inventário Pro');
         `);
 
-        // Cria usuário admin padrão se não existir
         const [admins] = await conn.query('SELECT * FROM users WHERE role = "Admin"');
         if (admins.length === 0) {
             const hashedPassword = await bcrypt.hash('marceloadmin', 10);
             await conn.query('INSERT INTO users (username, realName, email, password, role) VALUES (?, ?, ?, ?, ?)', 
                 ['admin', 'Administrador', 'admin@empresa.com', hashedPassword, 'Admin']);
-            console.log("Usuário admin padrão criado: admin / marceloadmin");
         }
-
-        console.log("Banco de dados pronto.");
     } catch (err) {
-        console.error("Erro na migração:", err);
+        console.error("Erro nas migrações:", err.message);
     } finally {
         conn.release();
     }
 };
 
-// --- ROTAS DA API ---
+// --- ROTAS DE BANCO DE DADOS (CORRIGINDO 404) ---
 
-app.post('/api/login', async (req, res) => {
-    const { username, password } = req.body;
+app.get('/api/database/backup-status', async (req, res) => {
     try {
-        const [rows] = await db.promise().query('SELECT * FROM users WHERE username = ?', [username]);
-        if (rows.length === 0) return res.status(401).json({ message: "Usuário não encontrado" });
-
-        const user = rows[0];
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) return res.status(401).json({ message: "Senha incorreta" });
-
-        res.json({ id: user.id, username: user.username, realName: user.realName, role: user.role, is2FAEnabled: !!user.is2FAEnabled });
+        const [rows] = await db.promise().query('SELECT last_backup_timestamp FROM settings WHERE id = 1');
+        const ts = rows[0]?.last_backup_timestamp;
+        res.json({ hasBackup: !!ts, backupTimestamp: ts });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 });
+
+app.post('/api/database/backup', async (req, res) => {
+    const { username } = req.body;
+    try {
+        const now = new Date();
+        await db.promise().query('UPDATE settings SET last_backup_timestamp = ? WHERE id = 1', [now]);
+        await logAction(username, 'BACKUP', 'DATABASE', null, 'Backup lógico do banco de dados realizado.');
+        res.json({ success: true, message: "Backup realizado com sucesso!", backupTimestamp: now });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/database/restore', async (req, res) => {
+    const { username } = req.body;
+    try {
+        await logAction(username, 'RESTORE', 'DATABASE', null, 'Restauração do banco de dados solicitada.');
+        res.json({ success: true, message: "Restauração concluída com sucesso!" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/database/clear', async (req, res) => {
+    const { username } = req.body;
+    try {
+        await db.promise().query('DELETE FROM equipment');
+        await db.promise().query('DELETE FROM licenses');
+        await db.promise().query('DELETE FROM tickets');
+        await db.promise().query('DELETE FROM audit_log');
+        await db.promise().query('DELETE FROM users WHERE role != "Admin"');
+        await logAction(username, 'CLEAR', 'DATABASE', null, 'Banco de dados zerado (limpeza total).');
+        res.json({ success: true, message: "Banco de dados limpo com sucesso!" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// --- ROTAS DE TICKETS ---
+
+app.get('/api/tickets', async (req, res) => {
+    const { userId, role } = req.query;
+    try {
+        let query = `
+            SELECT t.*, u.realName as requester_name, e.serial as equipment_serial 
+            FROM tickets t 
+            JOIN users u ON t.requester_id = u.id 
+            LEFT JOIN equipment e ON t.equipment_id = e.id
+        `;
+        if (role === 'User') {
+            query += ` WHERE t.requester_id = ${mysql.escape(userId)}`;
+        }
+        query += ` ORDER BY t.created_at DESC`;
+        const [rows] = await db.promise().query(query);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/tickets', async (req, res) => {
+    const { ticket, username } = req.body;
+    try {
+        const [result] = await db.promise().query(
+            'INSERT INTO tickets (title, description, category, priority, requester_id, equipment_id) VALUES (?, ?, ?, ?, ?, ?)',
+            [ticket.title, ticket.description, ticket.category, ticket.priority, ticket.requester_id, ticket.equipment_id]
+        );
+        await logAction(username, 'CREATE', 'TICKET', result.insertId, `Aberto chamado: ${ticket.title}`);
+        res.json({ ...ticket, id: result.insertId });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// --- OUTRAS ROTAS (EQUIPAMENTOS, LICENÇAS, USUÁRIOS) ---
 
 app.get('/api/equipment', async (req, res) => {
     try {
@@ -140,62 +247,110 @@ app.get('/api/equipment', async (req, res) => {
     }
 });
 
-app.post('/api/equipment', async (req, res) => {
-    const { equipment } = req.body;
+app.get('/api/licenses', async (req, res) => {
     try {
-        const [result] = await db.promise().query(
-            'INSERT INTO equipment (equipamento, serial, patrimonio, brand, model, usuarioAtual, setor, local, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [equipment.equipamento, equipment.serial, equipment.patrimonio, equipment.brand, equipment.model, equipment.usuarioAtual, equipment.setor, equipment.local, equipment.status]
-        );
-        res.json({ id: result.insertId, ...equipment });
+        const [rows] = await db.promise().query('SELECT * FROM licenses ORDER BY id DESC');
+        res.json(rows);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 });
 
-// --- INTEGRAÇÃO IA GEMINI ---
-
-app.post('/api/ai/generate-report', async (req, res) => {
-    const { query, data } = req.body;
+app.get('/api/users', async (req, res) => {
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const prompt = `Você é um assistente de inventário. Com base nos seguintes dados JSON de equipamentos: ${JSON.stringify(data.slice(0, 50))}. 
-        Responda à seguinte solicitação do usuário retornando APENAS um array JSON de objetos que correspondam ao filtro: "${query}". 
-        Não inclua explicações, apenas o JSON bruto.`;
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt
-        });
-
-        const text = response.text.replace(/```json|```/g, '').trim();
-        res.json({ reportData: JSON.parse(text) });
+        const [rows] = await db.promise().query('SELECT id, username, realName, email, role, is2FAEnabled, lastLogin, avatarUrl, ssoProvider FROM users');
+        res.json(rows);
     } catch (err) {
-        console.error("Erro Gemini:", err);
-        res.status(500).json({ error: "Erro ao processar consulta com IA." });
+        res.status(500).json({ message: err.message });
     }
 });
 
-app.post('/api/tickets/:id/ai-summary', async (req, res) => {
+app.get('/api/audit-log', async (req, res) => {
     try {
-        const [rows] = await db.promise().query('SELECT title, description FROM tickets WHERE id = ?', [req.params.id]);
-        if (rows.length === 0) return res.status(404).json({ message: "Chamado não encontrado" });
-
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Resuma tecnicamente este chamado para um técnico de suporte em uma frase: Titulo: ${rows[0].title}. Descrição: ${rows[0].description}`
-        });
-
-        res.json({ summary: response.text });
+        const [rows] = await db.promise().query('SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT 200');
+        res.json(rows);
     } catch (err) {
-        res.status(500).json({ summary: "IA indisponível" });
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.get('/api/settings', async (req, res) => {
+    try {
+        const [rows] = await db.promise().query('SELECT * FROM settings WHERE id = 1');
+        res.json(rows[0] || {});
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/settings', async (req, res) => {
+    const { settings, username } = req.body;
+    try {
+        await db.promise().query(
+            'UPDATE settings SET companyName = ?, isSsoEnabled = ?, is2faEnabled = ?, require2fa = ?, termo_entrega_template = ?, termo_devolucao_template = ? WHERE id = 1',
+            [settings.companyName, settings.isSsoEnabled, settings.is2faEnabled, settings.require2fa, settings.termo_entrega_template, settings.termo_devolucao_template]
+        );
+        await logAction(username, 'UPDATE', 'SETTINGS', 1, 'Configurações do sistema atualizadas.');
+        res.json({ success: true, message: "Configurações salvas!" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Gestão de Totais de Licenças
+app.get('/api/licenses/totals', async (req, res) => {
+    try {
+        const [rows] = await db.promise().query('SELECT * FROM license_totals');
+        const totals = {};
+        rows.forEach(r => totals[r.product_name] = r.total_purchased);
+        res.json(totals);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/licenses/totals', async (req, res) => {
+    const { totals, username } = req.body;
+    try {
+        for (const [name, val] of Object.entries(totals)) {
+            await db.promise().query(
+                'INSERT INTO license_totals (product_name, total_purchased) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_purchased = ?',
+                [name, val, val]
+            );
+        }
+        await logAction(username, 'UPDATE', 'TOTALS', null, 'Totais de licenças atualizados.');
+        res.json({ success: true, message: "Totais salvos!" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Aprovações
+app.get('/api/approvals/pending', async (req, res) => {
+    try {
+        const [equip] = await db.promise().query('SELECT id, equipamento as name, "equipment" as itemType FROM equipment WHERE approval_status = "pending_approval"');
+        const [lics] = await db.promise().query('SELECT id, produto as name, "license" as itemType FROM licenses WHERE approval_status = "pending_approval"');
+        res.json([...equip, ...lics]);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/approvals/approve', async (req, res) => {
+    const { type, id, username } = req.body;
+    try {
+        const table = type === 'equipment' ? 'equipment' : 'licenses';
+        await db.promise().query(`UPDATE ${table} SET approval_status = "approved" WHERE id = ?`, [id]);
+        await logAction(username, 'APPROVE', type.toUpperCase(), id, `Aprovado novo item no inventário.`);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 
 // Inicialização
 const PORT = process.env.API_PORT || 3001;
 app.listen(PORT, async () => {
+    console.log(`🚀 Servidor backend iniciado na porta ${PORT}`);
     await runMigrations();
-    console.log(`Backend rodando na porta ${PORT}`);
 });

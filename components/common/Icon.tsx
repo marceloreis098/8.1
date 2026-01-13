@@ -7,9 +7,11 @@ interface IconProps {
   color?: string;
   size?: number | string;
   className?: string;
+  // --- FIXED: Added title prop to resolve assignment errors in ServiceDesk.tsx ---
+  title?: string;
 }
 
-const Icon: React.FC<IconProps> = ({ name, color, size, className }) => {
+const Icon: React.FC<IconProps> = ({ name, color, size, className, title }) => {
   // @ts-ignore - dynamic access to icons
   const LucideIcon = icons[name] as React.ElementType;
 
@@ -18,7 +20,7 @@ const Icon: React.FC<IconProps> = ({ name, color, size, className }) => {
     return null;
   }
 
-  return <LucideIcon color={color} size={size} className={className} />;
+  return <LucideIcon color={color} size={size} className={className} title={title} />;
 };
 
 export default Icon;

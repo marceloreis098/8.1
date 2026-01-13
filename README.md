@@ -1,3 +1,4 @@
+
 # Gerenciador de Inventário Pro
 
 Este é um guia completo para a instalação e configuração do sistema Gerenciador de Inventário Pro em um ambiente de produção interno. A aplicação utiliza uma arquitetura full-stack com um frontend em React, um backend em Node.js (Express) e um banco de dados MariaDB rodando em um servidor Ubuntu.
@@ -100,7 +101,7 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
     # Navegue até a pasta da API
     cd /var/www/Inventario/inventario-api
     
-    # Instale as dependências (incluindo otplib, bcryptjs e mysql2)
+    # Instale as dependências (incluindo otplib, bcryptjs, mysql2 e @google/genai)
     npm install
     ```
     **Nota:** O servidor da API irá criar as tabelas necessárias no banco de dados automaticamente na primeira vez que for iniciado.
@@ -110,7 +111,7 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
     # Certifique-se de estar em /var/www/Inventario/inventario-api
     nano .env
     ```
-    Adicione o seguinte conteúdo, usando a senha que você definiu:
+    Adicione o seguinte conteúdo, usando a senha que você definiu e sua chave do Google Gemini:
     ```
     DB_HOST=localhost
     DB_USER=inventario_user
@@ -118,6 +119,7 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
     DB_DATABASE=inventario_pro
     API_PORT=3001
     BCRYPT_SALT_ROUNDS=10
+    API_KEY=sua-chave-api-do-google-gemini
     ```
 
 ### Passo 4: Configuração do Frontend
@@ -129,7 +131,7 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
 
 2.  **Instale as Dependências do Frontend:**
     ```bash
-    # Navegue até a pasta raiz do projeto
+    # Navegue para a pasta raiz do projeto
     cd /var/www/Inventario
     npm install 
     ```
@@ -239,170 +241,24 @@ A aplicação deve carregar a tela de login sem a necessidade de especificar a p
 
 ---
 
-## Configuração Adicional
+## Inteligência Artificial (Google Gemini)
 
-### Garantindo a Inicialização Automática
-
-Para garantir que tanto o frontend quanto o backend iniciem automaticamente sempre que o servidor for reiniciado, siga estes passos. Este processo utiliza o `pm2` para registrar as aplicações como um serviço do sistema.
-
-**Pré-requisito:** Certifique-se de que seus processos (`inventario-api` e `inventario-frontend`) já foram iniciados pelo menos uma vez com o `pm2`, conforme o Passo 5. Você pode verificar com `npx pm2 list`.
-
-#### 1. Gerar o Script de Inicialização
-
-Execute o seguinte comando. O `pm2` irá detectar seu sistema operacional e gerar um comando específico para configurar o serviço de inicialização.
-
-```bash
-npx pm2 startup
-```
-
-A saída será algo como:
-
-```
-[PM2] To setup the Startup Script, copy/paste the following command:
-sudo env PATH=$PATH:/usr/bin /.../pm2 startup systemd -u <seu_usuario> --hp /home/<seu_usuario>
-```
-
-#### 2. Executar o Comando Gerado
-
-**Copie e cole o comando exato** que foi exibido no seu terminal. É fundamental executar este comando com `sudo` (se for o caso) para que o `pm2` tenha as permissões necessárias para criar o serviço.
-
-#### 3. Salvar a Lista de Processos
-
-Após executar o comando anterior, salve a lista de processos que o `pm2` deve gerenciar. Isso fará com que o `pm2` "lembre" quais aplicações iniciar no boot.
-
-```bash
-npx pm2 save
-```
-
-Pronto! Agora, sempre que o servidor for reiniciado, o `pm2` será iniciado automaticamente e, em seguida, iniciará a `inventario-api` e o `inventario-frontend`.
-
-**Para testar:** Você pode reiniciar o servidor (`sudo reboot`) e, após o reinício, verificar o status com `npx pm2 list`. Ambos os processos devem estar com o status `online`.
-
-### Atualizando a Aplicação com Git
-
-Para atualizar a aplicação com as últimas alterações do repositório, siga estes passos.
-
-#### 1. Baixar as Atualizações
-
-Primeiro, navegue até a pasta raiz do projeto e use o `git` para baixar as novidades.
-
-```bash
-# Navegue para a pasta raiz
-cd /var/www/Inventario
-
-# Baixe as atualizações do repositório (branch 'main' ou 'master')
-git pull origin main
-```
-
-#### 2. Aplicar as Mudanças
-
-Após baixar os arquivos, pode ser necessário reinstalar dependências (se o `package.json` mudou) e reconstruir o frontend.
-
-**Para o Backend (API):**
-
-```bash
-# Navegue para a pasta da API
-cd /var/www/Inventario/inventario-api
-
-# Instale quaisquer novas dependências
-npm install
-
-# Reinicie la aplicação com pm2 para aplicar as mudanças
-npx pm2 restart inventario-api
-```
-
-**Para o Frontend:**
-
-```bash
-# Navegue para a pasta raiz do projeto
-cd /var/www/Inventario
-
-# Instale quaisquer novas dependências
-npm install
-
-# Recompile os arquivos do frontend
-npm run build
-
-# Reinicie o servidor do frontend com pm2
-npx pm2 restart inventario-frontend
-```
-
-Após esses passos, sua aplicação estará atualizada e rodando com a versão mais recente. Verifique os logs com `npx pm2 logs` se encontrar algum problema.
-
-**Substituindo o Repositório Git Remoto (Origem)**
-
-Caso seja necessário alterar o repositório de onde as atualizações são baixadas (por exemplo, ao migrar o projeto para um novo serviço Git), siga os passos abaixo.
-
-1.  **Navegue até a Pasta do Projeto:**
-    ```bash
-    cd /var/www/Inventario
-    ```
-
-2.  **Verifique o Remoto Atual:**
-    Este comando mostrará a URL atual para a qual o `origin` aponta.
-    ```bash
-    git remote -v
-    ```
-
-3.  **Altere a URL do Remoto:**
-    Substitua `URL_DO_NOVO_REPOSITORIO` pela nova URL do seu repositório Git.
-    ```bash
-    git remote set-url origin URL_DO_NOVO_REPOSITORIO
-    ```
-
-4.  **Verifique a Alteração:**
-    Execute novamente para confirmar que a URL foi atualizada.
-    ```bash
-    git remote -v
-    ```
-
-5.  **Baixe as Informações do Novo Repositório:**
-    ```bash
-    git fetch origin
-    ```
-    
-6.  **Sincronize sua Cópia Local (Opcional, mas recomendado):**
-    Se você deseja que sua cópia local seja um espelho exato do novo repositório, **cuidado, pois isso descartará quaisquer alterações locais não salvas**.
-    ```bash
-    # Substitua 'main' pelo nome do branch principal, se for diferente (ex: 'master')
-    git reset --hard origin/main 
-    ```
-
-Após esses passos, o comando `git pull origin main` passará a buscar atualizações do novo repositório.
----
-
-## Configuração da API do Hugging Face
-
-Para habilitar as funcionalidades de Inteligência Artificial do sistema, como o assistente de relatórios, é necessário configurar uma chave de API do Hugging Face.
+O sistema utiliza a API **Google Gemini** para funcionalidades como o assistente de relatórios e resumos de chamados técnicos.
 
 ### 1. Obtenha sua Chave de API
 
-1.  Crie uma conta em [https://huggingface.co/](https://huggingface.co/).
-2.  No seu perfil, vá para "Settings" -> "Access Tokens".
-3.  Crie um novo token com permissão "read".
-4.  Copie o token gerado.
+1.  Acesse o [Google AI Studio](https://aistudio.google.com/).
+2.  Crie uma nova API Key.
+3.  Certifique-se de que o faturamento (Billing) está configurado em um projeto Google Cloud pago para evitar limites restritivos (embora exista uma cota gratuita).
 
 ### 2. Adicione a Chave ao Backend
 
-1.  Navegue até a pasta da API:
-    ```bash
-    cd /var/www/Inventario/inventario-api
-    ```
-
-2.  Abra ou crie o arquivo `.env`:
-    ```bash
-    nano .env
-    ```
-
-3.  Adicione a seguinte linha, substituindo `seu-token-do-huggingface` pelo token que você copiou:
-    ```env
-    # ... (outras variáveis existentes)
-    HUGGING_FACE_API_KEY=seu-token-do-huggingface
-    ```
+No arquivo `.env` da pasta `inventario-api`, adicione:
+```env
+API_KEY=sua-chave-aqui
+```
 
 ### 3. Reinicie a API
-
-Para que a nova variável de ambiente seja carregada, reinicie o processo da API:
 
 ```bash
 npx pm2 restart inventario-api
@@ -412,133 +268,31 @@ npx pm2 restart inventario-api
 
 ## Solução de Problemas Comuns
 
+### Status "errored" no PM2 para inventario-api
+
+Se o comando `npx pm2 list` mostrar o backend em vermelho com o status `errored`:
+
+1.  **Verifique os Logs:** `npx pm2 logs inventario-api`
+2.  **Módulos Faltando:** Se o erro for `Cannot find module '@google/genai'`, você esqueceu de rodar o `npm install` dentro da pasta `inventario-api`.
+3.  **Banco de Dados:** Verifique se o MariaDB está rodando (`sudo systemctl status mariadb`) e se a senha no `.env` está correta.
+
 ### Falha no Login após "Zerar Banco de Dados"
 
 **Problema:** Após utilizar a função de "Zerar Banco de Dados" nas configurações, você não consegue mais fazer login com o usuário padrão (`admin` / `marceloadmin`).
 
-**Causa:** O sistema pode ter falhado em limpar o histórico de migrações, fazendo com que ele "pule" a etapa de recriação do usuário administrador na reinicialização.
+**Causa:** O sistema pode ter falhado em limpar o histórico de migrações.
 
-**Solução:** É necessário limpar a tabela de migrações manualmente e reiniciar a API.
+**Solução:** 
+1. Acesse o console do MySQL: `sudo mysql -u root -p`
+2. Rode: `USE inventario_pro; TRUNCATE TABLE migrations;`
+3. Saia e reinicie a API: `npx pm2 restart inventario-api`
 
-1.  Acesse o terminal do servidor onde o banco de dados está rodando.
-2.  Entre no monitor do MariaDB:
-    ```bash
-    sudo mysql -u root -p
-    ```
-3.  Selecione o banco de dados do projeto:
-    ```sql
-    USE inventario_pro;
-    ```
-4.  Limpe a tabela de migrações:
-    ```sql
-    TRUNCATE TABLE migrations;
-    ```
-5.  Saia do MariaDB:
-    ```sql
-    exit
-    ```
-6.  Reinicie a API para que ela rode as migrações novamente e recrie o usuário:
-    ```bash
-    # Se estiver usando PM2
-    npx pm2 restart inventario-api
-
-    # Ou se estiver rodando manualmente
-    # cd /var/www/Inventario/inventario-api && npm start
-    ```
 ---
 
-## Melhoria Futura: Migrando para HTTPS
+## Melhoria Futura: Migrando para HTTPS (SSL)
 
-Para um ambiente de produção acessível pela internet, é crucial proteger a aplicação usando HTTPS. Este guia descreve os passos para adicionar um certificado SSL/TLS usando Let's Encrypt e Certbot, que fornecem certificados gratuitos e automatizados.
-
-### Pré-requisitos
-
-1.  **Domínio Registrado:** Você precisa ter um nome de domínio (ex: `inventariopro.usereserva.com`) apontando para o endereço IP público do seu servidor.
-2.  **Acesso Root/Sudo:** Permissões de administrador no servidor.
-3.  **Nginx Configurado:** O Nginx já deve estar servindo sua aplicação em HTTP na porta 80, conforme o guia de instalação principal.
-
-### Passo 1: Instalar o Certbot
-
-Certbot é a ferramenta que automatiza a obtenção e renovação de certificados Let's Encrypt.
-
-1.  **Adicione o Repositório do Certbot:**
-    ```bash
-    sudo add-apt-repository ppa:certbot/certbot
-    sudo apt update
-    ```
-
-2.  **Instale o Certbot e o Plugin para Nginx:**
-    ```bash
-    sudo apt install python3-certbot-nginx
-    ```
-
-### Passo 2: Obter e Instalar o Certificado SSL
-
-1.  **Execute o Certbot para o seu domínio:**
-    O Certbot irá ler sua configuração do Nginx, solicitar o certificado e configurar automaticamente o Nginx para usar HTTPS.
-    ```bash
-    sudo certbot --nginx -d inventariopro.usereserva.com
-    ```
-    Durante o processo, o Certbot fará algumas perguntas:
-    *   Pedirá um e-mail para notificações de renovação.
-    *   Perguntará se você concorda com os Termos de Serviço.
-    *   Perguntará se você deseja redirecionar todo o tráfego HTTP para HTTPS. **Recomenda-se escolher a opção de redirecionamento (geralmente a opção 2).**
-
-2.  **Verifique a Renovação Automática:**
-    O Certbot configura um timer do `systemd` ou uma tarefa no `cron` para renovar automaticamente os certificados antes que expirem. Você pode testar o processo de renovação com o seguinte comando (ele não renovará de fato, apenas simulará):
-    ```bash
-    sudo certbot renew --dry-run
-    ```
-
-### Passo 3: Verificar a Configuração do Nginx
-
-Após a execução bem-sucedida, o Certbot terá modificado seu arquivo de configuração em `/etc/nginx/sites-available/inventario`. Ele deve se parecer com isto:
-
-```nginx
-server {
-    server_name inventariopro.usereserva.com;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    listen 443 ssl; # managed by Certbot
-    ssl_certificate /etc/letsencrypt/live/inventariopro.usereserva.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/inventariopro.usereserva.com/privkey.pem; # managed by Certbot
-    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
-}
-
-server {
-    if ($host = inventariopro.usereserva.com) {
-        return 301 https://$host$request_uri;
-    } # managed by Certbot
-
-    listen 80;
-    server_name inventariopro.usereserva.com;
-    return 404; # managed by Certbot
-}
-```
-
-### Passo 4: Atualizar o Firewall
-
-Se você escolheu redirecionar o tráfego, o Nginx agora está escutando na porta 443 (HTTPS). Certifique-se de que o firewall permite essa conexão.
-
+Recomenda-se fortemente o uso do **Certbot** para automatizar o HTTPS:
 ```bash
-# 'Nginx Full' já permite as portas 80 e 443. Se você usou 'Nginx HTTP' antes:
-sudo ufw allow 'Nginx Full'
-sudo ufw reload
+sudo apt install python3-certbot-nginx
+sudo certbot --nginx -d inventariopro.usereserva.com
 ```
-
-### Passo 5: Acesso à Aplicação
-
-Sua aplicação agora deve estar acessível de forma segura através de:
-
-`https://inventariopro.usereserva.com`
-
-Todo o tráfego para a versão `http://` será automaticamente redirecionado para `https://`.

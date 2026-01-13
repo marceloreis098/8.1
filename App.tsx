@@ -45,12 +45,15 @@ const App: React.FC = () => {
     }
 
     // Monitor demo mode changes
-    const handleStorageChange = () => {
-      setIsDemoMode(localStorage.getItem('demo_mode') === 'true');
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+    const interval = setInterval(() => {
+        const currentMode = localStorage.getItem('demo_mode') === 'true';
+        if (currentMode !== isDemoMode) {
+            setIsDemoMode(currentMode);
+        }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [isDemoMode]);
   
   const fetchSettings = useCallback(async () => {
         try {
@@ -64,10 +67,11 @@ const App: React.FC = () => {
 
     useEffect(() => {
         fetchSettings();
-    }, [fetchSettings, isDemoMode]);
+    }, [fetchSettings, isDemoMode, currentUser]);
 
 
   const handleLoginSuccess = (user: User & { requires2FASetup?: boolean }) => {
+    setIsDemoMode(localStorage.getItem('demo_mode') === 'true');
     if (user.requires2FASetup) {
       setUserFor2FASetup(user);
     } else if (user.is2FAEnabled) {
@@ -101,6 +105,13 @@ const App: React.FC = () => {
     sessionStorage.removeItem('2fa_verified');
     setActivePage('Dashboard');
   };
+
+  const deactivateDemoMode = () => {
+    localStorage.setItem('demo_mode', 'false');
+    setIsDemoMode(false);
+    handleLogout(); // Força o usuário a logar no sistema real
+    window.location.reload();
+  };
   
   const handleUserUpdate = (updatedUser: User) => {
     setCurrentUser(updatedUser);
@@ -125,7 +136,7 @@ const App: React.FC = () => {
     'Dashboard',
     'Inventário de Equipamentos',
     'Controle de Licenças',
-    'Service Desk', // Sempre disponível
+    'Service Desk',
   ];
 
   if (currentUser && [UserRole.Admin, UserRole.UserManager].includes(currentUser.role)) {
@@ -175,14 +186,14 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-dark-bg text-gray-800 dark:text-dark-text-primary">
       {isDemoMode && (
-        <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white py-2 px-4 text-center text-sm font-bold flex items-center justify-center gap-2 shadow-md z-50">
+        <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white py-2 px-4 text-center text-sm font-bold flex items-center justify-center gap-2 shadow-md z-[100] animate-fade-in">
            <Icon name="TriangleAlert" size={18} />
-           MODO DE DEMONSTRAÇÃO ATIVO - DADOS FICTÍCIOS CARREGADOS
+           MODO DE DEMONSTRAÇÃO ATIVO - DADOS FICTÍCIOS
            <button 
-            onClick={() => { localStorage.setItem('demo_mode', 'false'); window.location.reload(); }}
-            className="ml-4 underline hover:text-white/80"
+            onClick={deactivateDemoMode}
+            className="ml-4 bg-white/20 hover:bg-white/30 px-3 py-1 rounded border border-white/50 transition-colors"
            >
-             Desativar
+             Voltar ao Sistema Real (Produção)
            </button>
         </div>
       )}

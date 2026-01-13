@@ -347,8 +347,15 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
 
     const handleToggleDemoMode = (e: React.ChangeEvent<HTMLInputElement>) => {
         const checked = e.target.checked;
+        if (!checked && !window.confirm("Você sairá do modo de demonstração. Seus dados fictícios não serão salvos e você será desconectado para entrar no sistema real. Continuar?")) {
+            return;
+        }
         localStorage.setItem('demo_mode', String(checked));
         setIsDemoMode(checked);
+        if (!checked) {
+            localStorage.removeItem('currentUser');
+            sessionStorage.removeItem('2fa_verified');
+        }
         window.location.reload();
     };
 
@@ -411,7 +418,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
                                 </h3>
                                 <SettingsToggle
                                     label="Ativar Modo de Demonstração"
-                                    description="Carrega dados fictícios realistas para apresentações sem afetar o banco de dados real."
+                                    description="Carrega dados fictícios realistas para apresentações sem afetar o banco de dados real. Desativar fará o logout."
                                     name="demo_mode"
                                     checked={isDemoMode}
                                     onChange={handleToggleDemoMode}
@@ -678,7 +685,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
                                     type="button"
                                     onClick={handleBackupDatabase}
                                     disabled={isDatabaseActionLoading}
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center gap-2 text-sm"
+                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm min-w-[140px]"
                                     aria-label="Fazer Backup do Banco de Dados"
                                 >
                                     {isDatabaseActionLoading ? <Icon name="LoaderCircle" className="animate-spin" size={16} /> : <Icon name="SaveAll" size={16} />}
@@ -688,7 +695,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
                                     type="button"
                                     onClick={handleRestoreDatabase}
                                     disabled={isDatabaseActionLoading || !backupStatus?.hasBackup}
-                                    className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 disabled:bg-gray-400 flex items-center gap-2 text-sm"
+                                    className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm min-w-[140px]"
                                     aria-label="Restaurar Banco de Dados"
                                 >
                                     {isDatabaseActionLoading ? <Icon name="LoaderCircle" className="animate-spin" size={16} /> : <Icon name="RotateCw" size={16} />}
@@ -698,7 +705,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
                                     type="button"
                                     onClick={handleClearDatabase}
                                     disabled={isDatabaseActionLoading || !backupStatus?.hasBackup}
-                                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 flex items-center gap-2 text-sm"
+                                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm min-w-[140px]"
                                     aria-label="Zerar Banco de Dados"
                                 >
                                     {isDatabaseActionLoading ? <Icon name="LoaderCircle" className="animate-spin" size={16} /> : <Icon name="Eraser" size={16} />}

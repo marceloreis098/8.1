@@ -24,8 +24,6 @@ const pageIcons: { [key in Page]: keyof typeof icons } = {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, pages, isSidebarOpen, setIsSidebarOpen }) => {
-  const chatLink = `https://mail.google.com/chat/u/0/#chat/dm/${developerEmail}`;
-
   return (
     <>
       {/* Mobile Overlay */}
@@ -96,23 +94,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, pages, isS
         {/* Rodapé com Info do Desenvolvedor */}
         <div className="border-t dark:border-dark-border p-4 bg-gray-50 dark:bg-dark-bg/50">
             <div className={`flex items-center gap-3 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-                <a 
-                    href={chatLink} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="relative group block"
-                    title="Chamar no Google Chat"
-                >
+                <div className="relative group block">
                     <img
                         src={developerPhoto}
                         alt="Dev"
                         className={`
                             w-10 h-10 rounded-full object-cover border-2 border-gray-300 dark:border-dark-border bg-gray-200
                             transition-transform duration-300 ease-out origin-bottom-left
-                            hover:scale-[5] hover:z-50 hover:shadow-2xl cursor-pointer relative
+                            hover:scale-[5] hover:z-50 hover:shadow-2xl cursor-default relative
                         `}
                     />
-                </a>
+                </div>
                 
                 {isSidebarOpen && (
                     <div className="flex-1 min-w-0 overflow-hidden">

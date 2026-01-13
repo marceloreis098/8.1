@@ -2,6 +2,7 @@
 import { User, Equipment, License, UserRole, EquipmentHistory, AuditLogEntry, AppSettings, Ticket } from '../types';
 import * as demo from './demoData';
 
+// Função para checar o modo demo SEMPRE do localStorage para ser dinâmico
 const isDemo = () => localStorage.getItem('demo_mode') === 'true';
 
 const handleResponse = async (response: Response) => {
@@ -73,17 +74,16 @@ export const login = (credentials: {username: string, password?: string, ssoToke
 };
 
 export const checkApiStatus = async (): Promise<{ ok: boolean, message?: string }> => {
-    if (isDemo()) return { ok: true };
     try {
-        const response = await fetch(`${getApiBaseUrl()}/`); 
-        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        const response = await fetch(`${getApiBaseUrl()}/`, { cache: 'no-store' }); 
+        if (!response.ok && response.status !== 404) throw new Error(`Status: ${response.status}`);
         return { ok: true };
     } catch (error: any) {
         return { ok: false, message: 'Falha ao conectar com a API.' };
     }
 };
 
-// --- WRITE OPERATIONS (SIMULATED IN DEMO) ---
+// --- WRITE OPERATIONS ---
 
 export const createTicket = async (ticket: Partial<Ticket>, username: string): Promise<Ticket> => {
     if (isDemo()) return Promise.resolve({ ...ticket, id: Date.now(), created_at: new Date().toISOString() } as Ticket);
@@ -105,7 +105,6 @@ export const updateEquipment = (equipment: Equipment, username: string): Promise
     return apiRequest(`/equipment/${equipment.id}`, { method: 'PUT', body: JSON.stringify({ equipment, username }) });
 };
 
-// --- FIXED: Exported updateLicense which was missing and required by LicenseControl.tsx ---
 export const updateLicense = (license: License, username: string): Promise<License> => {
     if (isDemo()) return Promise.resolve(license);
     return apiRequest(`/licenses/${license.id}`, { method: 'PUT', body: JSON.stringify({ license, username }) });
@@ -126,49 +125,15 @@ export const deleteLicense = (id: number, username: string): Promise<void> => {
     return apiRequest(`/licenses/${id}`, { method: 'DELETE', body: JSON.stringify({ username }) });
 };
 
-// --- OTHER UTILS ---
-
-export const getEquipmentHistory = (equipmentId: number): Promise<EquipmentHistory[]> => {
-    if (isDemo()) return Promise.resolve([]);
-    return apiRequest(`/equipment/${equipmentId}/history`);
-};
-
-export const verify2FA = (userId: number, token: string): Promise<User> => {
-    if (isDemo()) return Promise.resolve(demo.mockUsers[0]);
-    return apiRequest('/verify-2fa', { method: 'POST', body: JSON.stringify({ userId, token }) });
-};
-
-export const getPendingApprovals = (): Promise<{id: number, name: string, itemType: 'equipment' | 'license'}[]> => {
-    if (isDemo()) return Promise.resolve([]);
-    return apiRequest('/approvals/pending');
-};
-
-export const getLicenseTotals = (): Promise<Record<string, number>> => {
-    if (isDemo()) return Promise.resolve({ 'Microsoft 365': 10, 'Adobe CC': 5 });
-    return apiRequest('/licenses/totals');
-};
-
-export const saveSettings = (settings: AppSettings, username: string): Promise<{ success: boolean; message: string; }> => {
-    if (isDemo()) return Promise.resolve({ success: true, message: 'Configurações simuladas salvas!' });
-    return apiRequest('/settings', { method: 'POST', body: JSON.stringify({ settings, username }) });
-};
-
-export const getTermoTemplates = (): Promise<{ entregaTemplate: string, devolucaoTemplate: string }> => {
-    if (isDemo()) return Promise.resolve({ entregaTemplate: 'Demo Entrega', devolucaoTemplate: 'Demo Devolução' });
-    return apiRequest('/config/termo-templates');
-};
-
-export const generateAiReport = (query: string, data: Equipment[], username: string): Promise<{ reportData?: Equipment[], error?: string }> => {
-    if (isDemo()) return Promise.resolve({ reportData: data.slice(0, 2) });
-    return apiRequest('/ai/generate-report', { method: 'POST', body: JSON.stringify({ query, data, username }) });
-};
-
-export const summarizeTicketWithAI = (ticketId: number): Promise<{ summary: string }> => {
-    if (isDemo()) return Promise.resolve({ summary: "Resumo simulado por IA: O usuário está com problemas de hardware." });
-    return apiRequest(`/tickets/${ticketId}/ai-summary`, { method: 'POST' });
-};
-
-// Fallbacks para manter compatibilidade
+// --- OUTRAS FUNÇÕES ---
+export const getEquipmentHistory = (equipmentId: number): Promise<EquipmentHistory[]> => apiRequest(`/equipment/${equipmentId}/history`);
+export const verify2FA = (userId: number, token: string): Promise<User> => apiRequest('/verify-2fa', { method: 'POST', body: JSON.stringify({ userId, token }) });
+export const getPendingApprovals = (): Promise<{id: number, name: string, itemType: 'equipment' | 'license'}[]> => apiRequest('/approvals/pending');
+export const getLicenseTotals = (): Promise<Record<string, number>> => apiRequest('/licenses/totals');
+export const saveSettings = (settings: AppSettings, username: string): Promise<{ success: boolean; message: string; }> => apiRequest('/settings', { method: 'POST', body: JSON.stringify({ settings, username }) });
+export const getTermoTemplates = (): Promise<{ entregaTemplate: string, devolucaoTemplate: string }> => apiRequest('/config/termo-templates');
+export const generateAiReport = (query: string, data: Equipment[], username: string): Promise<{ reportData?: Equipment[], error?: string }> => apiRequest('/ai/generate-report', { method: 'POST', body: JSON.stringify({ query, data, username }) });
+export const summarizeTicketWithAI = (ticketId: number): Promise<{ summary: string }> => apiRequest(`/tickets/${ticketId}/ai-summary`, { method: 'POST' });
 export const deleteUser = (id: number, username: string): Promise<void> => apiRequest(`/users/${id}`, { method: 'DELETE', body: JSON.stringify({ username }) });
 export const addUser = (user: Omit<User, 'id'>, username: string): Promise<User> => apiRequest('/users', { method: 'POST', body: JSON.stringify({ user, username }) });
 export const updateUser = (user: User, username: string): Promise<User> => apiRequest(`/users/${user.id}`, { method: 'PUT', body: JSON.stringify({ user, username }) });

@@ -5,7 +5,7 @@ import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import EquipmentList from './components/EquipmentList';
 import LicenseControl from './components/LicenseControl';
-import ServiceDesk from './components/ServiceDesk'; // Novo
+import ServiceDesk from './components/ServiceDesk';
 import UserManagement from './components/UserManagement';
 import Settings from './components/Settings';
 import AuditLog from './components/AuditLog';
@@ -44,7 +44,6 @@ const App: React.FC = () => {
       setIsDarkMode(true);
     }
 
-    // Monitor demo mode changes
     const interval = setInterval(() => {
         const currentMode = localStorage.getItem('demo_mode') === 'true';
         if (currentMode !== isDemoMode) {
@@ -108,8 +107,10 @@ const App: React.FC = () => {
 
   const deactivateDemoMode = () => {
     localStorage.setItem('demo_mode', 'false');
+    localStorage.removeItem('currentUser');
+    sessionStorage.removeItem('2fa_verified');
     setIsDemoMode(false);
-    handleLogout(); // Força o usuário a logar no sistema real
+    setCurrentUser(null);
     window.location.reload();
   };
   
@@ -171,6 +172,19 @@ const App: React.FC = () => {
     }
   };
 
+  const DemoBanner = () => (
+    <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white py-2 px-4 text-center text-sm font-bold flex items-center justify-center gap-2 shadow-md z-[100] animate-fade-in">
+       <Icon name="TriangleAlert" size={18} />
+       MODO DE DEMONSTRAÇÃO ATIVO - DADOS FICTÍCIOS
+       <button 
+        onClick={deactivateDemoMode}
+        className="ml-4 bg-white/20 hover:bg-white/30 px-3 py-1 rounded border border-white/50 transition-colors"
+       >
+         Voltar ao Sistema Real (Produção)
+       </button>
+    </div>
+  );
+
   if (userFor2FASetup) {
     return <TwoFactorSetup user={userFor2FASetup} onSetupSuccess={handle2FASetupSuccess} onCancel={handleLogout} />
   }
@@ -180,23 +194,17 @@ const App: React.FC = () => {
   }
 
   if (!currentUser) {
-    return <Login onLoginSuccess={handleLoginSuccess} isSsoEnabled={isSsoEnabled} />;
+    return (
+      <>
+        {isDemoMode && <DemoBanner />}
+        <Login onLoginSuccess={handleLoginSuccess} isSsoEnabled={isSsoEnabled} />
+      </>
+    );
   }
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-dark-bg text-gray-800 dark:text-dark-text-primary">
-      {isDemoMode && (
-        <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white py-2 px-4 text-center text-sm font-bold flex items-center justify-center gap-2 shadow-md z-[100] animate-fade-in">
-           <Icon name="TriangleAlert" size={18} />
-           MODO DE DEMONSTRAÇÃO ATIVO - DADOS FICTÍCIOS
-           <button 
-            onClick={deactivateDemoMode}
-            className="ml-4 bg-white/20 hover:bg-white/30 px-3 py-1 rounded border border-white/50 transition-colors"
-           >
-             Voltar ao Sistema Real (Produção)
-           </button>
-        </div>
-      )}
+      {isDemoMode && <DemoBanner />}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           activePage={activePage}
@@ -215,12 +223,12 @@ const App: React.FC = () => {
             setIsSidebarOpen={setIsSidebarOpen}
             onUserUpdate={handleUserUpdate}
           />
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-dark-bg p-4 sm:p-6">
-            {renderPage()}
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+             {renderPage()}
           </main>
+          <AIAssistantWidget currentUser={currentUser} />
         </div>
       </div>
-      <AIAssistantWidget currentUser={currentUser} />
     </div>
   );
 };
